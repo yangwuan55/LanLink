@@ -79,8 +79,6 @@ class MainActivity : AppCompatActivity() {
 
         initViews()
         setupRecyclerViews()
-        setupTabs()
-        setupClickListeners()
         checkPermissions()
     }
 
