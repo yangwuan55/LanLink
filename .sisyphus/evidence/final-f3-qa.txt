@@ -1,0 +1,39 @@
+# QA Evidence - lan-development-system
+# Date: Fri Apr 17 2026
+
+## Scenario 1: Build succeeds
+Command: ./gradlew assembleDebug
+Result: BUILD SUCCESSFUL in 780ms (38 actionable tasks: 1 executed, 37 up-to-date)
+Status: PASS
+
+## Scenario 2: Proto files generated
+Path: app/build/generated/source/proto/debug/java/com/example/lanchat/proto/
+Files found:
+  - AuthRequest.java
+  - AuthRequestOrBuilder.java
+  - AuthResponse.java
+  - AuthResponseOrBuilder.java
+  - ConnectionStatus.java
+  - ConnectionStatusOrBuilder.java
+  - LanMessage.java
+  - LanMessageOrBuilder.java
+  - LanService.java
+Expected: LanMessage.java, AuthRequest.java, AuthResponse.java, ConnectionStatus.java
+Status: PASS (all expected files exist + additional OrBuilder files)
+
+## Scenario 3: All required files exist
+All 10 required files exist:
+  - domain/auth/AuthProvider.kt: EXISTS
+  - data/nsd/NsdAdvertiser.kt: EXISTS
+  - data/nsd/NsdDiscoverer.kt: EXISTS
+  - data/socket/TcpSocketServer.kt: EXISTS
+  - data/socket/TcpSocketClient.kt: EXISTS
+  - data/socket/ProtobufChannel.kt: EXISTS
+  - data/repository/LanRepository.kt: EXISTS
+  - service/LanForegroundService.kt: EXISTS
+  - presentation/LanViewModel.kt: EXISTS
+  - presentation/MainActivity.kt: EXISTS
+Status: PASS
+
+## Summary
+ALL QA SCENARIOS: PASS

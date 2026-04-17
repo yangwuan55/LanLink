@@ -1,0 +1,94 @@
+# F1: Plan Compliance Audit - LAN Development System
+Date: Fri Apr 17 2026
+Auditor: Sisyphus-Junior
+
+## MUST HAVE (Verified Present)
+
+| Requirement | Status | Evidence |
+|------------|--------|----------|
+| Android NSD service registration | ✅ PASS | NsdAdvertiser.kt:37 SERVICE_TYPE = "_lanchat._tcp." |
+| Android NSD discovery | ✅ PASS | NsdDiscoverer.kt:44 SERVICE_TYPE = "_lanchat._tcp." |
+| TCP socket connection management | ✅ PASS | TcpSocketServer.kt (port=0 dynamic), TcpSocketClient.kt |
+| Protocol Buffers message serialization | ✅ PASS | ProtobufChannel.kt uses LanMessage.parseFrom/toByteArray |
+| Auth interface abstraction | ✅ PASS | AuthProvider.kt with suspend authenticate(), AuthResult sealed class |
+| No-op implementation | ✅ PASS | NoOpAuthProvider.kt returns AuthResult.Success always |
+| Foreground Service | ✅ PASS | LanForegroundService.kt with startForeground(), notification channel |
+| Clean Architecture with MVVM | ✅ PASS | domain/, data/, presentation/ layers + LanViewModel.kt |
+
+## MUST NOT HAVE (Verified Absent)
+
+| Guardrail | Status | Evidence |
+|-----------|--------|----------|
+| No HTTP/WebSocket | ✅ PASS | grep: "HttpURLConnection\|OkHttp\|Retrofit\|WebSocket" = 0 matches |
+| No encryption in core | ✅ PASS | grep: "AES\|RSA" in data/ core = 0 matches (only in auth impl if any) |
+| No hardcoded ports | ✅ PASS | grep: "port\s*=\s*8080\|port\s*=\s*9000" = 0 matches; TcpSocketServer uses port=0 |
+| No blocking UI thread | ✅ PASS | grep: "Thread.sleep" = 0 matches; all I/O uses Dispatchers.IO coroutines |
+| No plaintext credential storage | ✅ PASS | NoOpAuthProvider doesn't store; InMemoryAuthProvider only for testing |
+| No direct host/port before resolveService() | ✅ PASS | NsdDiscoverer.kt:62-63 resolves BEFORE using host/port |
+
+## Architecture Verification
+
+### Clean Architecture Layers
+```
+app/src/main/java/com/example/lanchat/
+├── domain/           # Business logic layer
+│   ├── auth/         # AuthProvider.kt, AuthResult.kt
+│   └── model/        # ConnectionState.kt, LanMessage.kt, PeerInfo.kt
+├── data/             # Data layer
+│   ├── auth/         # NoOpAuthProvider.kt, InMemoryAuthProvider.kt
+│   ├── nsd/          # NsdAdvertiser.kt, NsdDiscoverer.kt
+│   ├── repository/   # LanRepository.kt
+│   └── socket/       # TcpSocketServer.kt, TcpSocketClient.kt, ProtobufChannel.kt
+├── presentation/     # UI layer
+│   ├── MainActivity.kt
+│   ├── LanViewModel.kt
+│   ├── PeerAdapter.kt
+│   └── MessageAdapter.kt
+└── service/          # Android services
+    └── LanForegroundService.kt
+```
+
+### MVVM Pattern
+- **Model**: domain/model/ (ConnectionState, LanMessage, PeerInfo)
+- **View**: presentation/MainActivity.kt
+- **ViewModel**: presentation/LanViewModel.kt exposes StateFlows
+
+## Key Implementation Details
+
+### NSD Implementation
+- **MulticastLock acquired BEFORE registration/discovery** (NsdAdvertiser.kt:42, NsdDiscoverer.kt:50)
+- **resolveService() called BEFORE host/port access** (NsdDiscoverer.kt:62-63, 105-127)
+- **Dynamic port (port=0)** used in TcpSocketServer.kt:17
+
+### Coroutines Usage
+- All socket I/O uses `Dispatchers.IO`
+- `CoroutineScope(Dispatchers.IO + SupervisorJob())` in TcpSocketServer/Client
+- No `Thread.sleep` anywhere - uses `delay()` from kotlinx.coroutines
+
+### Protobuf Channel
+- Length-prefixed framing: 4-byte length + payload
+- Uses `protobuf-javalite` (Lite API)
+- MAX_MESSAGE_SIZE = 1MB
+
+## Files Verified
+- ✅ domain/auth/AuthProvider.kt - Auth interface
+- ✅ data/auth/NoOpAuthProvider.kt - No-op implementation
+- ✅ data/nsd/NsdAdvertiser.kt - NSD registration
+- ✅ data/nsd/NsdDiscoverer.kt - NSD discovery with resolveService
+- ✅ data/socket/TcpSocketServer.kt - TCP server (port=0)
+- ✅ data/socket/TcpSocketClient.kt - TCP client
+- ✅ data/socket/ProtobufChannel.kt - Protobuf serialization
+- ✅ service/LanForegroundService.kt - Foreground service
+- ✅ presentation/LanViewModel.kt - MVVM ViewModel
+- ✅ presentation/MainActivity.kt - UI
+- ✅ proto/lan_service.proto - Schema definition
+
+## Summary
+**COMPLIANCE: FULL ✅**
+
+All "Must Have" items are present.
+All "Must NOT Have" guardrails are absent.
+Clean Architecture with proper layer separation is implemented.
+MVVM pattern is correctly applied.
+
+No violations detected.
