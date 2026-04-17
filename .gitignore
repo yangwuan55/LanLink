@@ -1,0 +1,21 @@
+# Build outputs
+app/build/
+build/
+.gradle/
+*.apk
+*.aab
+
+# IDE
+.idea/
+*.iml
+*.ipr
+
+# Local config
+local.properties
+
+# Protobuf generated
+app/build/generated/
+
+# OS
+.DS_Store
+Thumbs.db
