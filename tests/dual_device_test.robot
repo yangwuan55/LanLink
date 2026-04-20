@@ -84,9 +84,9 @@ Dual Device Full Connection Test
     Clear Logcat On Device    ${DEVICE_CLIENT}
 
     # Client device - tap on the peer item to connect
-    # Note: ListView item position varies, using center of peer list area
+    # Peer "Pixel 6 Pro" is at bounds [48,724][1032,916], center ~ (540, 820)
     Log    Tapping on peer to connect...
-    Tap Button On Device    ${DEVICE_CLIENT}    540    1500
+    Tap Button On Device    ${DEVICE_CLIENT}    540    820
 
     # Wait for TCP connection to establish
     Sleep    5s
