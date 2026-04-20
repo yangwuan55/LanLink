@@ -11,6 +11,11 @@ ${APP_PACKAGE}    com.example.lanchat
 Dual Device Full Connection Test
     [Documentation]    Test UDP discovery AND TCP connection between two Android devices
 
+    # Step 1: Compile and install
+    Log    ===== Compiling and installing app =====
+    Compile And Install App
+    Log    ===== Install complete =====
+
     # Stop app on both devices - kill first to release sockets
     Kill App On Device    ${DEVICE_SERVER}
     Kill App On Device    ${DEVICE_CLIENT}
@@ -18,7 +23,7 @@ Dual Device Full Connection Test
     Stop App On Device    ${DEVICE_SERVER}
     Stop App On Device    ${DEVICE_CLIENT}
 
-    # Clear logs with logcat -c AND restart adb to ensure clean state
+    # Clear logs with logcat -c
     Clear Logcat On Device    ${DEVICE_SERVER}
     Clear Logcat On Device    ${DEVICE_CLIENT}
     Sleep    1s
@@ -38,9 +43,9 @@ Dual Device Full Connection Test
     ${client_log}=    Get Full Logcat On Device    ${DEVICE_CLIENT}
     Should Contain    ${client_log}    MainActivity
 
-    # Server device - tap Start Server button
+    # Server device - tap Start Server button by resource-id
     Log    Tapping Start Server on server device...
-    Tap Button On Device    ${DEVICE_SERVER}    540    2900
+    Tap Element By Id    ${DEVICE_SERVER}    com.example.lanchat:id/start_stop_button
 
     # Wait for server to start broadcasting
     Sleep    3s
@@ -52,14 +57,14 @@ Dual Device Full Connection Test
 
     # Client device - tap CLIENT tab first
     Log    Tapping CLIENT tab on client device...
-    Tap Button On Device    ${DEVICE_CLIENT}    786    395
+    Tap Element By Content Desc    ${DEVICE_CLIENT}    Client
 
     # Wait for tab switch
     Sleep    1s
 
-    # Client device - tap Start Discovery
+    # Client device - tap Start Discovery (same button id, different action based on tab)
     Log    Tapping Start Discovery on client device...
-    Tap Button On Device    ${DEVICE_CLIENT}    540    2200
+    Tap Element By Id    ${DEVICE_CLIENT}    com.example.lanchat:id/start_stop_button
 
     # Wait for discovery with polling (UDP broadcasts every 2s, discovery may take time)
     Log    Waiting for UDP discovery...
@@ -91,10 +96,9 @@ Dual Device Full Connection Test
     # Clear client logcat to see only connection logs
     Clear Logcat On Device    ${DEVICE_CLIENT}
 
-    # Client device - tap on the peer item to connect
-    # Peer "Pixel 6 Pro" is at bounds [48,724][1032,916], center ~ (540, 820)
-    Log    Tapping on peer to connect...
-    Tap Button On Device    ${DEVICE_CLIENT}    540    820
+    # Client device - tap on the peer item to connect (click on "Pixel 6 Pro" text)
+    Log    Tapping on peer item in list...
+    Tap Element By Text    ${DEVICE_CLIENT}    Pixel 6 Pro
 
     # Wait for TCP connection to establish
     Sleep    5s
@@ -152,6 +156,30 @@ Dual Device Full Connection Test
     Log    ===== FULL INTEGRATION TEST COMPLETE =====
 
 *** Keywords ***
+Compile And Install App
+    [Documentation]    Compile and install the debug APK on both devices
+    Log    Compiling app with Gradle...
+    ${result}=    Run Process    ./gradlew    assembleDebug    cwd=/Users/ymr/github/localnetwork    shell=True
+    Log    Gradle stdout: ${result.stdout}
+    Log    Gradle stderr: ${result.stderr}
+    Should Not Contain    ${result.stderr}    FAILURE
+    Should Contain    ${result.stdout}    BUILD SUCCESSFUL
+    Log    Compile successful
+
+    Log    Installing app on device ${DEVICE_SERVER}...
+    ${apk_path}=    Set Variable    /Users/ymr/github/localnetwork/app/build/outputs/apk/debug/app-debug.apk
+    Log    APK path: ${apk_path}
+    ${result}=    Run Process    adb    -s    ${DEVICE_SERVER}    install    -r    ${apk_path}    shell=True
+    Log    Install stdout: ${result.stdout}
+    Should Contain    ${result.stdout}    Success
+    Log    Install successful on ${DEVICE_SERVER}
+
+    Log    Installing app on device ${DEVICE_CLIENT}...
+    ${result}=    Run Process    adb    -s    ${DEVICE_CLIENT}    install    -r    ${apk_path}    shell=True
+    Log    Install stdout: ${result.stdout}
+    Should Contain    ${result.stdout}    Success
+    Log    Install successful on ${DEVICE_CLIENT}
+
 Stop App On Device
     [Arguments]    ${device_id}
     Run Process    adb    -s    ${device_id}    shell    am    force-stop    ${APP_PACKAGE}
@@ -175,9 +203,125 @@ Get Full Logcat On Device
     ${result}=    Run Process    adb    -s    ${device_id}    shell    logcat    -d    shell=True
     RETURN    ${result.stdout}
 
-Tap Button On Device
-    [Arguments]    ${device_id}    ${x}    ${y}
-    Run Process    adb    -s    ${device_id}    shell    input    tap    ${x}    ${y}
+Tap Element By Id
+    [Arguments]    ${device_id}    ${resource_id}
+    [Documentation]    Find element by resource-id and tap its center
+    Log    Looking for element by id: ${resource_id}
+    ${x1}    ${y1}    ${x2}    ${y2}=    Get Element Bounds By Id    ${device_id}    ${resource_id}
+    Log    Element bounds: [${x1},${y1}][${x2},${y2}]
+    ${cx}=    Evaluate    (${x1} + ${x2}) // 2
+    ${cy}=    Evaluate    (${y1} + ${y2}) // 2
+    Log    Tapping at center: (${cx}, ${cy})
+    Tap Button On Device    ${device_id}    ${cx}    ${cy}
+
+Tap Element By Content Desc
+    [Arguments]    ${device_id}    ${content_desc}
+    [Documentation]    Find element by content-desc and tap its center
+    Log    Looking for element by content-desc: ${content_desc}
+    ${x1}    ${y1}    ${x2}    ${y2}=    Get Element Bounds By Content Desc    ${device_id}    ${content_desc}
+    Log    Element bounds: [${x1},${y1}][${x2},${y2}]
+    ${cx}=    Evaluate    (${x1} + ${x2}) // 2
+    ${cy}=    Evaluate    (${y1} + ${y2}) // 2
+    Log    Tapping at center: (${cx}, ${cy})
+    Tap Button On Device    ${device_id}    ${cx}    ${cy}
+
+Tap Element By Text
+    [Arguments]    ${device_id}    ${text}
+    [Documentation]    Find element by text and tap its center
+    Log    Looking for element by text: ${text}
+    ${x1}    ${y1}    ${x2}    ${y2}=    Get Element Bounds By Text    ${device_id}    ${text}
+    Log    Element bounds: [${x1},${y1}][${x2},${y2}]
+    ${cx}=    Evaluate    (${x1} + ${x2}) // 2
+    ${cy}=    Evaluate    (${y1} + ${y2}) // 2
+    Log    Tapping at center: (${cx}, ${cy})
+    Tap Button On Device    ${device_id}    ${cx}    ${cy}
+
+Get Element Bounds By Id
+    [Arguments]    ${device_id}    ${resource_id}
+    [Documentation]    Get bounds of element by resource-id using uiautomator
+    ${result}=    Run Process    adb    -s    ${device_id}    shell    uiautomator    dump    /sdcard/ui.xml    shell=True
+    ${xml}=    Run Process    adb    -s    ${device_id}    shell    cat    /sdcard/ui.xml    shell=True
+    ${output}=    Set Variable    ${xml.stdout}
+    # Parse bounds from the XML - find the element with the given resource-id
+    # Format: resource-id="com.example.lanchat:id/start_stop_button" ... bounds="[x1,y1][x2,y2]"
+    ${match}=    Evaluate    re.search(r'resource-id="${resource_id}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"', """${output}""")    modules=re
+    IF    ${match}
+        ${x1}=    Convert To Integer    ${match.group(1)}
+        ${y1}=    Convert To Integer    ${match.group(2)}
+        ${x2}=    Convert To Integer    ${match.group(3)}
+        ${y2}=    Convert To Integer    ${match.group(4)}
+        RETURN    ${x1}    ${y1}    ${x2}    ${y2}
+    ELSE
+        # Try alternate pattern where bounds comes before resource-id
+        ${match2}=    Evaluate    re.search(r'bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"[^>]*resource-id="${resource_id}"', """${output}""")    modules=re
+        IF    ${match2}
+            ${x1}=    Convert To Integer    ${match2.group(1)}
+            ${y1}=    Convert To Integer    ${match2.group(2)}
+            ${x2}=    Convert To Integer    ${match2.group(3)}
+            ${y2}=    Convert To Integer    ${match2.group(4)}
+            RETURN    ${x1}    ${y1}    ${x2}    ${y2}
+        ELSE
+            Fail    Element with resource-id ${resource_id} not found on device ${device_id}
+        END
+    END
+
+Get Element Bounds By Content Desc
+    [Arguments]    ${device_id}    ${content_desc}
+    [Documentation]    Get bounds of element by content-desc using uiautomator
+    ${result}=    Run Process    adb    -s    ${device_id}    shell    uiautomator    dump    /sdcard/ui.xml    shell=True
+    ${xml}=    Run Process    adb    -s    ${device_id}    shell    cat    /sdcard/ui.xml    shell=True
+    ${output}=    Set Variable    ${xml.stdout}
+    # Parse bounds from the XML - find the element with the given content-desc
+    # Format: content-desc="Client" ... bounds="[x1,y1][x2,y2]"
+    ${match}=    Evaluate    re.search(r'content-desc="${content_desc}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"', """${output}""")    modules=re
+    IF    ${match}
+        ${x1}=    Convert To Integer    ${match.group(1)}
+        ${y1}=    Convert To Integer    ${match.group(2)}
+        ${x2}=    Convert To Integer    ${match.group(3)}
+        ${y2}=    Convert To Integer    ${match.group(4)}
+        RETURN    ${x1}    ${y1}    ${x2}    ${y2}
+    ELSE
+        # Try alternate pattern where bounds comes before content-desc
+        ${match2}=    Evaluate    re.search(r'bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"[^>]*content-desc="${content_desc}"', """${output}""")    modules=re
+        IF    ${match2}
+            ${x1}=    Convert To Integer    ${match2.group(1)}
+            ${y1}=    Convert To Integer    ${match2.group(2)}
+            ${x2}=    Convert To Integer    ${match2.group(3)}
+            ${y2}=    Convert To Integer    ${match2.group(4)}
+            RETURN    ${x1}    ${y1}    ${x2}    ${y2}
+        ELSE
+            Fail    Element with content-desc ${content_desc} not found on device ${device_id}
+        END
+    END
+
+Get Element Bounds By Text
+    [Arguments]    ${device_id}    ${text}
+    [Documentation]    Get bounds of element by text using uiautomator
+    ${result}=    Run Process    adb    -s    ${device_id}    shell    uiautomator    dump    /sdcard/ui.xml    shell=True
+    ${xml}=    Run Process    adb    -s    ${device_id}    shell    cat    /sdcard/ui.xml    shell=True
+    ${output}=    Set Variable    ${xml.stdout}
+    # Parse bounds from the XML - find the element with the given text
+    # Format: text="Pixel 6 Pro" ... bounds="[x1,y1][x2,y2]"
+    ${match}=    Evaluate    re.search(r'text="${text}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"', """${output}""")    modules=re
+    IF    ${match}
+        ${x1}=    Convert To Integer    ${match.group(1)}
+        ${y1}=    Convert To Integer    ${match.group(2)}
+        ${x2}=    Convert To Integer    ${match.group(3)}
+        ${y2}=    Convert To Integer    ${match.group(4)}
+        RETURN    ${x1}    ${y1}    ${x2}    ${y2}
+    ELSE
+        # Try alternate pattern where bounds comes before text
+        ${match2}=    Evaluate    re.search(r'bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"[^>]*text="${text}"', """${output}""")    modules=re
+        IF    ${match2}
+            ${x1}=    Convert To Integer    ${match2.group(1)}
+            ${y1}=    Convert To Integer    ${match2.group(2)}
+            ${x2}=    Convert To Integer    ${match2.group(3)}
+            ${y2}=    Convert To Integer    ${match2.group(4)}
+            RETURN    ${x1}    ${y1}    ${x2}    ${y2}
+        ELSE
+            Fail    Element with text ${text} not found on device ${device_id}
+        END
+    END
 
 Check UI For Text On Device
     [Arguments]    ${device_id}    ${text}
@@ -185,6 +329,10 @@ Check UI For Text On Device
     ${xml}=    Run Process    adb    -s    ${device_id}    shell    cat    /sdcard/ui.xml    shell=True
     ${found}=    Evaluate    """${text}""" in """${xml.stdout}"""
     RETURN    ${found}
+
+Tap Button On Device
+    [Arguments]    ${device_id}    ${x}    ${y}
+    Run Process    adb    -s    ${device_id}    shell    input    tap    ${x}    ${y}
 
 Input Text On Device
     [Arguments]    ${device_id}    ${x}    ${y}    ${text}
