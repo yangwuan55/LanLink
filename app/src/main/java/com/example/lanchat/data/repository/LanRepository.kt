@@ -18,6 +18,8 @@ import com.example.lanchat.domain.model.PeerInfo
 import com.example.lanchat.proto.AuthRequest
 import java.net.InetAddress
 import com.example.lanchat.proto.AuthResponse
+import java.io.InputStream
+import java.io.OutputStream
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
@@ -93,19 +95,20 @@ class LanRepository(
     }
 
     private fun createServerCallback() = object : SocketCallback {
-        override fun onConnected() {
+        override fun onConnected(inputStream: InputStream, outputStream: OutputStream) {
             Log.d(TAG, "Client connected to server")
+            protobufChannel = ProtobufChannel(inputStream, outputStream)
             _connectionState.value = ConnectionState.Connected("[Client]", isServer = true)
         }
 
         override fun onDisconnected() {
             Log.d(TAG, "Client disconnected from server")
+            protobufChannel = null
             _connectionState.value = ConnectionState.Idle
         }
 
         override fun onMessageReceived(message: ByteArray) {
             Log.d(TAG, "Server received message: ${message.size} bytes")
-            // Handle incoming message - for now just log
         }
 
         override fun onError(error: Throwable) {
@@ -182,12 +185,14 @@ class LanRepository(
     }
 
     private fun createClientCallback() = object : SocketCallback {
-        override fun onConnected() {
+        override fun onConnected(inputStream: InputStream, outputStream: OutputStream) {
             Log.d(TAG, "Connected to server")
+            protobufChannel = ProtobufChannel(inputStream, outputStream)
         }
 
         override fun onDisconnected() {
             Log.d(TAG, "Disconnected from server")
+            protobufChannel = null
             _connectionState.value = ConnectionState.Idle
         }
 

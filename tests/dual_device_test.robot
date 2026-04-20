@@ -8,8 +8,8 @@ ${DEVICE_CLIENT}    6dcede68
 ${APP_PACKAGE}    com.example.lanchat
 
 *** Test Cases ***
-Dual Device Discovery Test
-    [Documentation]    Test UDP discovery between two Android devices
+Dual Device Full Connection Test
+    [Documentation]    Test UDP discovery AND TCP connection between two Android devices
 
     # Stop app on both devices
     Stop App On Device    ${DEVICE_SERVER}
@@ -72,10 +72,60 @@ Dual Device Discovery Test
     ${ui_check}=    Check UI For Text On Device    ${DEVICE_CLIENT}    Pixel 6 Pro
     Log    Peer visible in UI: ${ui_check}
 
-    # Final verification
+    # Final verification for discovery phase
     Should Be True    ${discovery_success} or ${ui_check}    Discovery failed - neither logs nor UI show peer
 
     Log    ===== DISCOVERY SUCCESSFUL =====
+
+    # ===== PHASE 2: TCP CONNECTION =====
+    Log    ===== Starting TCP Connection Phase =====
+
+    # Clear client logcat to see only connection logs
+    Clear Logcat On Device    ${DEVICE_CLIENT}
+
+    # Client device - tap on the peer item to connect
+    # Note: ListView item position varies, using center of peer list area
+    Log    Tapping on peer to connect...
+    Tap Button On Device    ${DEVICE_CLIENT}    540    1500
+
+    # Wait for TCP connection to establish
+    Sleep    5s
+
+    # Check if TCP connection was established
+    Log    Checking TCP connection logs on client...
+    ${client_log}=    Get Full Logcat On Device    ${DEVICE_CLIENT}
+
+    # Look for connection success indicators
+    ${tcp_connected}=    Evaluate    "Connected to server" in """${client_log}""" or "ProtobufChannel" in """${client_log}"""
+    Log    TCP connection established: ${tcp_connected}
+
+    # Check server logs for client connection
+    Log    Checking TCP connection logs on server...
+    ${server_log}=    Get Full Logcat On Device    ${DEVICE_SERVER}
+    ${server_got_connection}=    Evaluate    "Client connected to server" in """${server_log}""" or "ProtobufChannel" in """${server_log}"""
+    Log    Server received connection: ${server_got_connection}
+
+    # Verify at least one side shows successful connection
+    Should Be True    ${tcp_connected} or ${server_got_connection}    TCP connection failed - no connection indicators found
+
+    Log    ===== TCP CONNECTION SUCCESSFUL =====
+
+    # ===== PHASE 3: MESSAGING (Optional - depends on UI) =====
+    Log    ===== Testing Messaging Phase =====
+
+    # Type a test message
+    Log    Typing test message on client...
+    Input Text On Device    ${DEVICE_CLIENT}    300    2700    Hello from Client!
+
+    # Wait for message to be sent
+    Sleep    2s
+
+    # Check if message was sent
+    ${client_log}=    Get Full Logcat On Device    ${DEVICE_CLIENT}
+    ${message_sent}=    Evaluate    "Sent message" in """${client_log}""" or "Sent LanMessage" in """${client_log}"""
+    Log    Message sent: ${message_sent}
+
+    Log    ===== FULL INTEGRATION TEST COMPLETE =====
 
 *** Keywords ***
 Stop App On Device
@@ -105,3 +155,9 @@ Check UI For Text On Device
     ${xml}=    Run Process    adb    -s    ${device_id}    shell    cat    /sdcard/ui.xml    shell=True
     ${found}=    Evaluate    """${text}""" in """${xml.stdout}"""
     RETURN    ${found}
+
+Input Text On Device
+    [Arguments]    ${device_id}    ${x}    ${y}    ${text}
+    Run Process    adb    -s    ${device_id}    shell    input    tap    ${x}    ${y}
+    Sleep    0.5s
+    Run Process    adb    -s    ${device_id}    shell    input    text    ${text}

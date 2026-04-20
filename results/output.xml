@@ -1,0 +1,482 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 7.4.2 (Python 3.13.5 on darwin)" generated="2026-04-20T11:41:23.194514" rpa="false" schemaversion="5">
+<suite id="s1" name="Dual Device Test" source="/Users/ymr/github/localnetwork/tests/dual_device_test.robot">
+<test id="s1-t1" name="Dual Device Discovery Test" line="11">
+<kw name="Stop App On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:23.215405" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell am force-stop com.example.lanchat</msg>
+<msg time="2026-04-20T11:41:23.219050" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:23.321649" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>am</arg>
+<arg>force-stop</arg>
+<arg>${APP_PACKAGE}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:23.215144" elapsed="0.106646"/>
+</kw>
+<arg>${DEVICE_SERVER}</arg>
+<status status="PASS" start="2026-04-20T11:41:23.214873" elapsed="0.107071"/>
+</kw>
+<kw name="Stop App On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:23.322804" level="INFO">Starting process:
+adb -s 6dcede68 shell am force-stop com.example.lanchat</msg>
+<msg time="2026-04-20T11:41:23.325732" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:23.568334" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>am</arg>
+<arg>force-stop</arg>
+<arg>${APP_PACKAGE}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:23.322466" elapsed="0.246132"/>
+</kw>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T11:41:23.322201" elapsed="0.246634"/>
+</kw>
+<kw name="Clear Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:23.573584" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell logcat -c</msg>
+<msg time="2026-04-20T11:41:23.579350" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:23.719446" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-c</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:23.569726" elapsed="0.149961"/>
+</kw>
+<arg>${DEVICE_SERVER}</arg>
+<status status="PASS" start="2026-04-20T11:41:23.569237" elapsed="0.150629"/>
+</kw>
+<kw name="Clear Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:23.721088" level="INFO">Starting process:
+adb -s 6dcede68 shell logcat -c</msg>
+<msg time="2026-04-20T11:41:23.729096" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:23.768918" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-c</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:23.720581" elapsed="0.048505"/>
+</kw>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T11:41:23.720189" elapsed="0.049036"/>
+</kw>
+<kw name="Launch App On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:23.770338" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell am start -n com.example.lanchat/.presentation.MainActivity</msg>
+<msg time="2026-04-20T11:41:23.773520" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:23.858908" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>am</arg>
+<arg>start</arg>
+<arg>-n</arg>
+<arg>${APP_PACKAGE}/.presentation.MainActivity</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:23.769852" elapsed="0.089238"/>
+</kw>
+<arg>${DEVICE_SERVER}</arg>
+<status status="PASS" start="2026-04-20T11:41:23.769514" elapsed="0.089745"/>
+</kw>
+<kw name="Launch App On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:23.860556" level="INFO">Starting process:
+adb -s 6dcede68 shell am start -n com.example.lanchat/.presentation.MainActivity</msg>
+<msg time="2026-04-20T11:41:23.864431" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:23.927639" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>am</arg>
+<arg>start</arg>
+<arg>-n</arg>
+<arg>${APP_PACKAGE}/.presentation.MainActivity</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:23.860009" elapsed="0.067981"/>
+</kw>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T11:41:23.859590" elapsed="0.068616"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T11:41:26.930660" level="INFO">Slept 3 seconds.</msg>
+<arg>3s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T11:41:23.928476" elapsed="3.002440"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T11:41:26.931710" level="INFO">Verifying apps started...</msg>
+<arg>Verifying apps started...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T11:41:26.931283" elapsed="0.000489"/>
+</kw>
+<kw name="Get Full Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:26.932965" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell logcat -d</msg>
+<msg time="2026-04-20T11:41:26.938044" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:27.041913" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T11:41:27.042196" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-d</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:26.932425" elapsed="0.109792"/>
+</kw>
+<return>
+<value>${result.stdout}</value>
+<status status="PASS" start="2026-04-20T11:41:27.042346" elapsed="0.000089"/>
+</return>
+<msg time="2026-04-20T11:41:27.042951" level="INFO">${server_log} = --------- beginning of main
+04-20 11:41:25.300  4223  4223 D WorkspaceRevealAnim: onAnimationEnd: workspace alpha = 1.0
+--------- beginning of system
+04-20 11:41:25.302  3822  4537 V WindowManagerShel...</msg>
+<var>${server_log}</var>
+<arg>${DEVICE_SERVER}</arg>
+<status status="PASS" start="2026-04-20T11:41:26.932048" elapsed="0.110921"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${server_log}</arg>
+<arg>MainActivity</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="PASS" start="2026-04-20T11:41:27.043103" elapsed="0.000503"/>
+</kw>
+<kw name="Get Full Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:27.044202" level="INFO">Starting process:
+adb -s 6dcede68 shell logcat -d</msg>
+<msg time="2026-04-20T11:41:27.046403" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:27.136519" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T11:41:27.136859" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-d</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:27.043884" elapsed="0.093016"/>
+</kw>
+<return>
+<value>${result.stdout}</value>
+<status status="PASS" start="2026-04-20T11:41:27.137053" elapsed="0.000095"/>
+</return>
+<msg time="2026-04-20T11:41:27.137880" level="INFO">${client_log} = --------- beginning of main
+04-20 11:41:22.223  1385  1385 E SchedAssist: ofbSetSfMsgTrans pid(1385) failed with error=Permission denied
+04-20 11:41:22.224 31369 31424 I WeatherS_LocalUtils: browser v...</msg>
+<var>${client_log}</var>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T11:41:27.043730" elapsed="0.094173"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${client_log}</arg>
+<arg>MainActivity</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="PASS" start="2026-04-20T11:41:27.138197" elapsed="0.000493"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T11:41:27.139058" level="INFO">Tapping Start Server on server device...</msg>
+<arg>Tapping Start Server on server device...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T11:41:27.138780" elapsed="0.000331"/>
+</kw>
+<kw name="Tap Button On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:27.140133" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell input tap 540 2900</msg>
+<msg time="2026-04-20T11:41:27.144176" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:27.216587" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>input</arg>
+<arg>tap</arg>
+<arg>${x}</arg>
+<arg>${y}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:27.139602" elapsed="0.077182"/>
+</kw>
+<arg>${DEVICE_SERVER}</arg>
+<arg>540</arg>
+<arg>2900</arg>
+<status status="PASS" start="2026-04-20T11:41:27.139317" elapsed="0.077661"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T11:41:30.220696" level="INFO">Slept 3 seconds.</msg>
+<arg>3s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T11:41:27.217222" elapsed="3.004013"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T11:41:30.223749" level="INFO">Checking server broadcasts...</msg>
+<arg>Checking server broadcasts...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T11:41:30.222134" elapsed="0.001685"/>
+</kw>
+<kw name="Get Full Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:30.226108" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell logcat -d</msg>
+<msg time="2026-04-20T11:41:30.231485" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:30.298715" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T11:41:30.299125" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-d</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:30.225207" elapsed="0.073950"/>
+</kw>
+<return>
+<value>${result.stdout}</value>
+<status status="PASS" start="2026-04-20T11:41:30.299354" elapsed="0.000115"/>
+</return>
+<msg time="2026-04-20T11:41:30.300168" level="INFO">${server_log} = --------- beginning of main
+04-20 11:41:25.300  4223  4223 D WorkspaceRevealAnim: onAnimationEnd: workspace alpha = 1.0
+--------- beginning of system
+04-20 11:41:25.302  3822  4537 V WindowManagerShel...</msg>
+<var>${server_log}</var>
+<arg>${DEVICE_SERVER}</arg>
+<status status="PASS" start="2026-04-20T11:41:30.224405" elapsed="0.075784"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${server_log}</arg>
+<arg>LANCHAT_DISCOVER</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="PASS" start="2026-04-20T11:41:30.300384" elapsed="0.000562"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T11:41:30.301134" level="INFO">Tapping CLIENT tab on client device...</msg>
+<arg>Tapping CLIENT tab on client device...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T11:41:30.301018" elapsed="0.000138"/>
+</kw>
+<kw name="Tap Button On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:30.301911" level="INFO">Starting process:
+adb -s 6dcede68 shell input tap 786 395</msg>
+<msg time="2026-04-20T11:41:30.305961" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:30.413540" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>input</arg>
+<arg>tap</arg>
+<arg>${x}</arg>
+<arg>${y}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:30.301513" elapsed="0.112239"/>
+</kw>
+<arg>${DEVICE_CLIENT}</arg>
+<arg>786</arg>
+<arg>395</arg>
+<status status="PASS" start="2026-04-20T11:41:30.301318" elapsed="0.112626"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T11:41:31.417267" level="INFO">Slept 1 second.</msg>
+<arg>1s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T11:41:30.414198" elapsed="1.003248"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T11:41:31.418042" level="INFO">Tapping Start Discovery on client device...</msg>
+<arg>Tapping Start Discovery on client device...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T11:41:31.417688" elapsed="0.000401"/>
+</kw>
+<kw name="Tap Button On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:31.419240" level="INFO">Starting process:
+adb -s 6dcede68 shell input tap 540 2200</msg>
+<msg time="2026-04-20T11:41:31.423454" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:31.547462" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>input</arg>
+<arg>tap</arg>
+<arg>${x}</arg>
+<arg>${y}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:31.418730" elapsed="0.128967"/>
+</kw>
+<arg>${DEVICE_CLIENT}</arg>
+<arg>540</arg>
+<arg>2200</arg>
+<status status="PASS" start="2026-04-20T11:41:31.418342" elapsed="0.129582"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T11:41:36.551246" level="INFO">Slept 5 seconds.</msg>
+<arg>5s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T11:41:31.548183" elapsed="5.003745"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T11:41:36.553560" level="INFO">Checking if client discovered server...</msg>
+<arg>Checking if client discovered server...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T11:41:36.552687" elapsed="0.000930"/>
+</kw>
+<kw name="Get Full Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:36.555366" level="INFO">Starting process:
+adb -s 6dcede68 shell logcat -d</msg>
+<msg time="2026-04-20T11:41:36.559221" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:36.652913" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T11:41:36.653247" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-d</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:36.554615" elapsed="0.098666"/>
+</kw>
+<return>
+<value>${result.stdout}</value>
+<status status="PASS" start="2026-04-20T11:41:36.653444" elapsed="0.000105"/>
+</return>
+<msg time="2026-04-20T11:41:36.654359" level="INFO">${client_log} = --------- beginning of main
+04-20 11:41:22.223  1385  1385 E SchedAssist: ofbSetSfMsgTrans pid(1385) failed with error=Permission denied
+04-20 11:41:22.224 31369 31424 I WeatherS_LocalUtils: browser v...</msg>
+<var>${client_log}</var>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T11:41:36.554086" elapsed="0.100296"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T11:41:36.658424" level="INFO">${discovery_success} = True</msg>
+<var>${discovery_success}</var>
+<arg>"LANCHAT_DISCOVER" in """${client_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T11:41:36.654573" elapsed="0.003871"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T11:41:36.659037" level="INFO">Client received UDP broadcasts: True</msg>
+<arg>Client received UDP broadcasts: ${discovery_success}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T11:41:36.658822" elapsed="0.000247"/>
+</kw>
+<kw name="Check UI For Text On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:36.659733" level="INFO">Starting process:
+adb -s 6dcede68 shell uiautomator dump /sdcard/ui.xml</msg>
+<msg time="2026-04-20T11:41:36.662676" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:38.915536" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T11:41:38.917086" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>uiautomator</arg>
+<arg>dump</arg>
+<arg>/sdcard/ui.xml</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:36.659419" elapsed="2.257714"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T11:41:38.920329" level="INFO">Starting process:
+adb -s 6dcede68 shell cat /sdcard/ui.xml</msg>
+<msg time="2026-04-20T11:41:38.924752" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T11:41:39.008039" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T11:41:39.008319" level="INFO">${xml} = &lt;result object with rc 0&gt;</msg>
+<var>${xml}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>cat</arg>
+<arg>/sdcard/ui.xml</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T11:41:38.918080" elapsed="0.090264"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T11:41:39.009461" level="INFO">${found} = True</msg>
+<var>${found}</var>
+<arg>"""${text}""" in """${xml.stdout}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T11:41:39.008603" elapsed="0.000877"/>
+</kw>
+<return>
+<value>${found}</value>
+<status status="PASS" start="2026-04-20T11:41:39.009521" elapsed="0.000050"/>
+</return>
+<msg time="2026-04-20T11:41:39.009671" level="INFO">${ui_check} = True</msg>
+<var>${ui_check}</var>
+<arg>${DEVICE_CLIENT}</arg>
+<arg>Pixel 6 Pro</arg>
+<status status="PASS" start="2026-04-20T11:41:36.659228" elapsed="2.350460"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T11:41:39.009925" level="INFO">Peer visible in UI: True</msg>
+<arg>Peer visible in UI: ${ui_check}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T11:41:39.009769" elapsed="0.000179"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${discovery_success} or ${ui_check}</arg>
+<arg>Discovery failed - neither logs nor UI show peer</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-04-20T11:41:39.010024" elapsed="0.000206"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T11:41:39.010384" level="INFO">===== DISCOVERY SUCCESSFUL =====</msg>
+<arg>===== DISCOVERY SUCCESSFUL =====</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T11:41:39.010282" elapsed="0.000123"/>
+</kw>
+<doc>Test UDP discovery between two Android devices</doc>
+<status status="PASS" start="2026-04-20T11:41:23.214609" elapsed="15.795916"/>
+</test>
+<status status="PASS" start="2026-04-20T11:41:23.195247" elapsed="15.815787"/>
+</suite>
+<statistics>
+<total>
+<stat pass="1" fail="0" skip="0">All Tests</stat>
+</total>
+<tag>
+</tag>
+<suite>
+<stat name="Dual Device Test" id="s1" pass="1" fail="0" skip="0">Dual Device Test</stat>
+</suite>
+</statistics>
+<errors>
+</errors>
+</robot>

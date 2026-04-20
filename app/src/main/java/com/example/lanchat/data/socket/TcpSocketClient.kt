@@ -34,13 +34,14 @@ class TcpSocketClient(private val callback: SocketCallback) {
             try {
                 Log.d(TAG, "Connecting to $host:$port (attempt ${currentRetry + 1})")
 
-                socket = Socket(host, port).apply {
+                val newSocket = Socket(host, port).apply {
                     soTimeout = 0  // No timeout
                 }
+                socket = newSocket
                 _isConnected.value = true
                 currentRetry = 0  // Reset on success
                 Log.d(TAG, "Connected to $host:$port")
-                callback.onConnected()
+                callback.onConnected(newSocket.getInputStream(), newSocket.getOutputStream())
 
                 // Start reading in loop
                 readLoop()

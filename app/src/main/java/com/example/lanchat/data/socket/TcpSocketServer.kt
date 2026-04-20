@@ -57,7 +57,11 @@ class TcpSocketServer(
             try {
                 clientSocket = serverSocket!!.accept()
                 Log.d(TAG, "Client connected from ${clientSocket!!.remoteSocketAddress}")
-                callback.onConnected()
+
+                // Create protobuf channel with the client socket's streams
+                val inputStream = clientSocket!!.getInputStream()
+                val outputStream = clientSocket!!.getOutputStream()
+                callback.onConnected(inputStream, outputStream)
 
                 // Handle client in separate coroutine
                 scope.launch {
@@ -74,26 +78,11 @@ class TcpSocketServer(
 
     private suspend fun handleClient(socket: Socket) = withContext(Dispatchers.IO) {
         try {
-            val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
-
-            // Read loop
-            while (isActive && !socket.isClosed) {
-                try {
-                    val line = reader.readLine()
-                    if (line != null) {
-                        val bytes = line.toByteArray()
-                        callback.onMessageReceived(bytes)
-                    } else {
-                        // Client disconnected
-                        break
-                    }
-                } catch (e: SocketException) {
-                    Log.d(TAG, "Client read error", e)
-                    break
-                }
+            while (isActive && !socket.isClosed && socket.isConnected) {
+                kotlinx.coroutines.delay(100)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Client handler error", e)
+            Log.d(TAG, "Client handler error", e)
         } finally {
             try {
                 socket.close()
