@@ -3,8 +3,9 @@ package com.example.lanchat.data.repository
 import android.content.Context
 import android.util.Log
 import com.example.lanchat.data.auth.NoOpAuthProvider
-import com.example.lanchat.data.nsd.NsdAdvertiser
-import com.example.lanchat.data.nsd.NsdDiscoverer
+import com.example.lanchat.data.discovery.UdpDiscoveryServer
+import com.example.lanchat.data.discovery.UdpDiscoveryClient
+import com.example.lanchat.data.discovery.DiscoveredPeer
 import com.example.lanchat.data.socket.ProtobufChannel
 import com.example.lanchat.data.socket.SocketCallback
 import com.example.lanchat.data.socket.TcpSocketClient
@@ -15,6 +16,7 @@ import com.example.lanchat.domain.model.ConnectionState
 import com.example.lanchat.proto.LanMessage as ProtoLanMessage
 import com.example.lanchat.domain.model.PeerInfo
 import com.example.lanchat.proto.AuthRequest
+import java.net.InetAddress
 import com.example.lanchat.proto.AuthResponse
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -25,9 +27,9 @@ class LanRepository(
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    // NSD components
-    private var nsdAdvertiser: NsdAdvertiser? = null
-    private var nsdDiscoverer: NsdDiscoverer? = null
+    // UDP Discovery components
+    private var udpDiscoveryServer: UdpDiscoveryServer? = null
+    private var udpDiscoveryClient: UdpDiscoveryClient? = null
 
     // Socket components
     private var tcpServer: TcpSocketServer? = null
@@ -50,7 +52,14 @@ class LanRepository(
 
     companion object {
         private const val TAG = "LanRepository"
-        private const val SERVICE_NAME_PREFIX = "LanChat_"
+    }
+
+    private fun DiscoveredPeer.toPeerInfo(): PeerInfo {
+        return PeerInfo(
+            name = this.name,
+            host = InetAddress.getByName(this.host),
+            port = this.port
+        )
     }
 
     // ===== SERVER MODE =====
@@ -61,20 +70,23 @@ class LanRepository(
 
         try {
             // Start TCP server first
+            Log.d(TAG, "Creating TCP server...")
             val serverCallback = createServerCallback()
             tcpServer = TcpSocketServer(port = 0, callback = serverCallback)
             serverPort = tcpServer!!.start()
             Log.d(TAG, "TCP Server started on port $serverPort")
 
-            // Start NSD advertising
-            nsdAdvertiser = NsdAdvertiser(context)
-            val serviceName = SERVICE_NAME_PREFIX + android.os.Build.MODEL
-            nsdAdvertiser!!.registerService(serviceName, serverPort)
-            Log.d(TAG, "NSD advertising: $serviceName on port $serverPort")
+            // Start UDP discovery broadcasting
+            Log.d(TAG, "Creating UDP Discovery Server for port $serverPort...")
+            udpDiscoveryServer = UdpDiscoveryServer(context, serverPort)
+            Log.d(TAG, "Starting UDP Discovery Server...")
+            udpDiscoveryServer!!.start()
+            Log.d(TAG, "UDP Discovery broadcasting on port $serverPort")
 
             _connectionState.value = ConnectionState.Idle
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start server", e)
+            e.printStackTrace()
             _connectionState.value = ConnectionState.Error("Server failed: ${e.message}")
             stopServer()
         }
@@ -103,11 +115,12 @@ class LanRepository(
     }
 
     fun stopServer() {
+        Log.d(TAG, "Stopping server on port $serverPort")
         scope.cancel()
         tcpServer?.stop()
         tcpServer = null
-        nsdAdvertiser?.unregisterService()
-        nsdAdvertiser = null
+        udpDiscoveryServer?.stop()
+        udpDiscoveryServer = null
         protobufChannel = null
         _connectionState.value = ConnectionState.Idle
     }
@@ -117,19 +130,18 @@ class LanRepository(
     suspend fun startDiscovery() = withContext(Dispatchers.IO) {
         isServerMode = false
         _connectionState.value = ConnectionState.Discovering
+        Log.d(TAG, "Starting peer discovery")
 
         try {
-            nsdDiscoverer = NsdDiscoverer(context)
+            udpDiscoveryClient = UdpDiscoveryClient()
 
-            // Collect discovered peers
             scope.launch {
-                nsdDiscoverer!!.discoveredPeers.collect { peers ->
-                    _discoveredPeers.value = peers
+                udpDiscoveryClient!!.discoveredPeers.collect { peers ->
+                    _discoveredPeers.value = peers.map { it.toPeerInfo() }
                 }
             }
 
-            // Start discovery
-            nsdDiscoverer!!.discoverServices()
+            udpDiscoveryClient!!.start()
         } catch (e: Exception) {
             Log.e(TAG, "Discovery failed", e)
             _connectionState.value = ConnectionState.Error("Discovery failed: ${e.message}")
@@ -137,8 +149,9 @@ class LanRepository(
     }
 
     fun stopDiscovery() {
-        nsdDiscoverer?.stopDiscovery()
-        nsdDiscoverer = null
+        Log.d(TAG, "Stopping peer discovery")
+        udpDiscoveryClient?.stop()
+        udpDiscoveryClient = null
         _discoveredPeers.value = emptyList()
         if (_connectionState.value == ConnectionState.Discovering) {
             _connectionState.value = ConnectionState.Idle
@@ -215,6 +228,7 @@ class LanRepository(
     }
 
     fun disconnect() {
+        Log.d(TAG, "Disconnecting from ${currentPeerName ?: "unknown peer"}")
         tcpClient?.disconnect()
         tcpClient = null
         protobufChannel = null

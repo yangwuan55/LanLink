@@ -142,11 +142,18 @@ class NsdDiscoverer(private val context: Context) {
 
     private fun acquireMulticastLock() {
         if (multicastLock == null) {
-            multicastLock = wifiManager.createMulticastLock("NsdDiscoverer").apply {
-                setReferenceCounted(true)
-                acquire()
+            try {
+                multicastLock = wifiManager.createMulticastLock("NsdDiscoverer").apply {
+                    setReferenceCounted(true)
+                    acquire()
+                }
+                Log.d(TAG, "MulticastLock acquired")
+            } catch (e: SecurityException) {
+                // CHANGE_WIFI_MULTICAST_STATE is signature-level permission
+                // On some devices NSD works without explicit multicast lock
+                Log.w(TAG, "Cannot acquire MulticastLock (signature permission required). NSD may still work on this device.")
+                multicastLock = null
             }
-            Log.d(TAG, "MulticastLock acquired")
         }
     }
 

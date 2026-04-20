@@ -14,6 +14,50 @@ import kotlinx.coroutines.launch
 class LanViewModel(application: Application) : AndroidViewModel(application) {
 
     private var repository: LanRepository? = null
+    private var isTestMode = false
+
+    /**
+     * For testing only - allows injecting a mock repository
+     */
+    fun setRepositoryForTesting(repository: LanRepository) {
+        isTestMode = true
+        this.repository = repository
+        observeRepositoryState()
+    }
+
+    /**
+     * For testing only - allows injecting flows directly
+     */
+    fun setRepositoryForTesting(
+        connectionStateFlow: MutableStateFlow<ConnectionState>,
+        discoveredPeersFlow: MutableStateFlow<List<PeerInfo>>,
+        messagesFlow: MutableStateFlow<List<LanMessage>>
+    ) {
+        isTestMode = true
+        viewModelScope.launch {
+            connectionStateFlow.collect { state ->
+                _connectionState.value = state
+                updateUiStateFromConnection(state)
+            }
+        }
+        viewModelScope.launch {
+            discoveredPeersFlow.collect { peers ->
+                _discoveredPeers.value = peers
+            }
+        }
+        viewModelScope.launch {
+            messagesFlow.collect { messageList ->
+                messageList.forEach { protoMessage ->
+                    val domainMessage = LanMessage(
+                        id = protoMessage.id,
+                        timestamp = protoMessage.timestamp,
+                        payload = protoMessage.payload
+                    )
+                    _messages.value = _messages.value + domainMessage
+                }
+            }
+        }
+    }
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
@@ -34,10 +78,13 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     fun initialize(authProvider: AuthProvider? = null) {
+        if (isTestMode) return
         val context = getApplication<Application>().applicationContext
         repository = LanRepository(context, authProvider ?: com.example.lanchat.data.auth.NoOpAuthProvider())
+        observeRepositoryState()
+    }
 
-        // Observe repository state
+    private fun observeRepositoryState() {
         viewModelScope.launch {
             repository!!.connectionState.collect { state ->
                 _connectionState.value = state

@@ -39,29 +39,36 @@ class TcpSocketServer(
             _isRunning.value = true
             Log.d(TAG, "Server started on port $actualPort")
 
-            // Accept connections in loop
-            while (isActive && serverSocket != null && !serverSocket!!.isClosed) {
-                try {
-                    clientSocket = serverSocket!!.accept()
-                    Log.d(TAG, "Client connected from ${clientSocket!!.remoteSocketAddress}")
-                    callback.onConnected()
-
-                    // Handle client in separate coroutine
-                    scope.launch {
-                        handleClient(clientSocket!!)
-                    }
-                } catch (e: SocketException) {
-                    if (e.message != "Socket closed") {
-                        Log.e(TAG, "Accept error", e)
-                        callback.onError(e)
-                    }
-                }
+            // Start accept loop in SEPARATE coroutine so this function can return
+            scope.launch {
+                acceptLoop()
             }
+            
             actualPort
         } catch (e: Exception) {
             Log.e(TAG, "Server start error", e)
             callback.onError(e)
             throw e
+        }
+    }
+    
+    private suspend fun acceptLoop() = withContext(Dispatchers.IO) {
+        while (isActive && serverSocket != null && !serverSocket!!.isClosed) {
+            try {
+                clientSocket = serverSocket!!.accept()
+                Log.d(TAG, "Client connected from ${clientSocket!!.remoteSocketAddress}")
+                callback.onConnected()
+
+                // Handle client in separate coroutine
+                scope.launch {
+                    handleClient(clientSocket!!)
+                }
+            } catch (e: SocketException) {
+                if (e.message != "Socket closed") {
+                    Log.e(TAG, "Accept error", e)
+                    callback.onError(e)
+                }
+            }
         }
     }
 

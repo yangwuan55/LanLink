@@ -1,18 +1,14 @@
 package com.example.lanchat.presentation
 
-import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.util.Log
 import android.widget.*
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -26,6 +22,8 @@ import com.example.lanchat.domain.model.PeerInfo
 import com.example.lanchat.service.LanForegroundService
 import com.google.android.material.tabs.TabLayout
 import kotlinx.coroutines.launch
+
+private const val TAG = "MainActivity"
 
 class MainActivity : AppCompatActivity() {
 
@@ -62,24 +60,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val permissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val allGranted = permissions.all { it.value }
-        if (allGranted) {
-            initializeApp()
-        } else {
-            Toast.makeText(this, "Permissions required for LAN discovery", Toast.LENGTH_LONG).show()
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         initViews()
         setupRecyclerViews()
-        checkPermissions()
+        initializeApp()
     }
 
     private fun initViews() {
@@ -113,17 +100,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
+        Log.d(TAG, "Setting up click listeners")
         startStopButton.setOnClickListener {
+            Log.d(TAG, "Start/Stop button clicked, isServerMode: $isServerMode")
             if (isServerMode) {
                 val state = viewModel.connectionState.value
-                if (state is ConnectionState.Connected ||
-                    (state is ConnectionState.Idle && viewModel.uiState.value.statusMessage != "Starting server...")) {
-                    viewModel.stopServer()
-                    LanForegroundService.stop(this)
-                } else {
-                    viewModel.startServer()
-                    LanForegroundService.start(this)
-                    bindService()
+                when (state) {
+                    is ConnectionState.Connected -> {
+                        viewModel.stopServer()
+                        LanForegroundService.stop(this)
+                    }
+                    is ConnectionState.Idle -> {
+                        viewModel.startServer()
+                        LanForegroundService.start(this)
+                        bindService()
+                    }
+                    is ConnectionState.Connecting -> {
+                        viewModel.stopServer()
+                        LanForegroundService.stop(this)
+                    }
+                    else -> {}
                 }
             } else {
                 if (viewModel.connectionState.value is ConnectionState.Discovering) {
@@ -137,6 +133,7 @@ class MainActivity : AppCompatActivity() {
         sendButton.setOnClickListener {
             val message = messageInput.text.toString()
             if (message.isNotBlank()) {
+                Log.d(TAG, "Send button clicked, message: $message")
                 viewModel.sendMessage(message)
                 messageInput.text.clear()
             }
@@ -144,6 +141,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUiForMode() {
+        if (!::viewModel.isInitialized) return
+
+        Log.d(TAG, "Updating UI for mode: ${if (isServerMode) "Server" else "Client"}")
         if (isServerMode) {
             peerList.visibility = ListView.GONE
             startStopButton.text = if (viewModel.connectionState.value is ConnectionState.Connected) "Stop Server" else "Start Server"
@@ -153,36 +153,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkPermissions() {
-        val permissions = mutableListOf(
-            Manifest.permission.INTERNET,
-            Manifest.permission.ACCESS_WIFI_STATE,
-            Manifest.permission.CHANGE_WIFI_STATE,
-            Manifest.permission.ACCESS_NETWORK_STATE
-        )
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-
-        val notGranted = permissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-
-        if (notGranted.isEmpty()) {
-            initializeApp()
-        } else {
-            permissionLauncher.launch(notGranted.toTypedArray())
-        }
-    }
-
     private fun initializeApp() {
+        Log.d(TAG, "Initializing app")
         viewModel = ViewModelProvider(this)[LanViewModel::class.java]
         viewModel.initialize()
 
         repository = LanRepository(applicationContext)
 
-        // Observe state changes using lifecycleScope
+        setupTabs()
+        setupClickListeners()
+        Log.d(TAG, "App initialization complete")
+
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
@@ -214,6 +195,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateConnectionState(state: ConnectionState) {
+        Log.d(TAG, "Connection state changed to: ${state::class.simpleName}")
         when (state) {
             is ConnectionState.Connected -> {
                 progressBar.visibility = ProgressBar.GONE
