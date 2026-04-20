@@ -34,6 +34,7 @@ class TcpSocketServer(
         try {
             serverSocket = ServerSocket(port).apply {
                 soTimeout = 0  // No timeout
+                reuseAddress = true
             }
             actualPort = serverSocket!!.localPort
             _isRunning.value = true

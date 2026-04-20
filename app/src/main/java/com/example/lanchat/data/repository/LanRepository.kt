@@ -67,6 +67,14 @@ class LanRepository(
     // ===== SERVER MODE =====
 
     suspend fun startServer() = withContext(Dispatchers.IO) {
+        // Stop any existing server first (but don't cancel scope - we need it for new coroutines)
+        isServerMode = false
+        tcpServer?.stop()
+        tcpServer = null
+        udpDiscoveryServer?.stop()
+        udpDiscoveryServer = null
+        protobufChannel = null
+
         isServerMode = true
         _connectionState.value = ConnectionState.Connecting
 
@@ -120,18 +128,21 @@ class LanRepository(
 
     private suspend fun handleServerSession() {
         Log.d(TAG, "handleServerSession: starting, channel=${protobufChannel}")
+        Log.d(TAG, ">>> HANDLE_SERVER_SESSION_START channel=${protobufChannel != null}")
         val channel = protobufChannel ?: run {
             Log.e(TAG, "handleServerSession: channel is null!")
             return
         }
         Log.d(TAG, "handleServerSession: channel ready")
+        Log.d(TAG, ">>> SERVER_SESSION_READY")
         try {
             var authDone = false
             while (currentCoroutineContext().isActive && !authDone) {
                 try {
                     Log.d(TAG, "handleServerSession: waiting for auth request...")
+                    Log.d(TAG, ">>> SERVER_WAITING_FOR_AUTH")
                     val request = channel.receiveAuthRequest()
-                    Log.d(TAG, "Received auth request from ${request.deviceName}")
+                    Log.d(TAG, ">>> SERVER_RECEIVED_AUTH from=${request.deviceName}")
                     val result = authProvider.authenticate(request.deviceName, request.credentials.toByteArray())
                     val response = AuthResponse.newBuilder().apply {
                         success = result is AuthResult.Success
@@ -141,7 +152,7 @@ class LanRepository(
                         }
                     }.build()
                     channel.sendAuthResponse(response)
-                    Log.d(TAG, "Sent auth response: success=${response.success}")
+                    Log.d(TAG, ">>> SERVER_SENT_AUTH_RESPONSE success=${response.success}")
                     authDone = true
                 } catch (e: Exception) {
                     Log.e(TAG, "Auth exchange error, exiting: ${e.message}")
@@ -165,12 +176,12 @@ class LanRepository(
 
     fun stopServer() {
         Log.d(TAG, "Stopping server on port $serverPort")
-        scope.cancel()
         tcpServer?.stop()
         tcpServer = null
         udpDiscoveryServer?.stop()
         udpDiscoveryServer = null
         protobufChannel = null
+        isServerMode = false
         _connectionState.value = ConnectionState.Idle
     }
 
@@ -254,11 +265,13 @@ class LanRepository(
 
     private suspend fun handleClientSession() {
         Log.d(TAG, "handleClientSession: starting, channel=${protobufChannel}")
+        Log.d(TAG, ">>> HANDLE_CLIENT_SESSION_START channel=${protobufChannel != null}")
         val channel = protobufChannel ?: run {
             Log.e(TAG, "handleClientSession: channel is null!")
             return
         }
         Log.d(TAG, "handleClientSession: channel ready")
+        Log.d(TAG, ">>> CLIENT_SESSION_READY")
         try {
             val credentials = authProvider.getCredentials()
             val authRequest = AuthRequest.newBuilder().apply {
@@ -267,12 +280,14 @@ class LanRepository(
                     this.credentials = com.google.protobuf.ByteString.copyFrom(credentials)
                 }
             }.build()
+            Log.d(TAG, ">>> CLIENT_SENDING_AUTH_REQUEST")
             channel.sendAuthRequest(authRequest)
-            Log.d(TAG, "Sent auth request")
+            Log.d(TAG, ">>> CLIENT_SENT_AUTH_REQUEST")
 
             val response = channel.receiveAuthResponse()
+            Log.d(TAG, ">>> CLIENT_RECEIVED_AUTH_RESPONSE success=${response.success}")
             if (response.success) {
-                Log.d(TAG, "Authentication successful")
+                Log.d(TAG, ">>> CLIENT_AUTH_SUCCESS")
             } else {
                 Log.w(TAG, "Authentication failed: ${response.message}")
                 return
@@ -313,10 +328,11 @@ class LanRepository(
                 timestamp = System.currentTimeMillis()
                 this.payload = payload
             }.build()
-            protobufChannel?.send(message)
-            Log.d(TAG, "Sent message: $payload")
+            Log.d(TAG, "sendMessage: channel=${protobufChannel}, messageId=${message.id}")
+            val sent = protobufChannel?.send(message) ?: throw IllegalStateException("Cannot send: protobufChannel is null")
+            Log.d(TAG, ">>> MESSAGE_SENT_BY_CLIENT payload='$payload'")
         } catch (e: Exception) {
-            Log.e(TAG, "Send failed", e)
+            Log.e(TAG, ">>> SEND_MESSAGE_FAILED: ${e.message}")
             throw e
         }
     }
