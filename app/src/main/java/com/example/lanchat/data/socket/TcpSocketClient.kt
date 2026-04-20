@@ -43,9 +43,6 @@ class TcpSocketClient(private val callback: SocketCallback) {
                 Log.d(TAG, "Connected to $host:$port")
                 callback.onConnected(newSocket.getInputStream(), newSocket.getOutputStream())
 
-                // Start reading in loop
-                readLoop()
-
             } catch (e: UnknownHostException) {
                 Log.e(TAG, "Unknown host: $host", e)
                 callback.onError(e)

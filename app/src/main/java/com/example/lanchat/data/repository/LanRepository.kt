@@ -99,6 +99,7 @@ class LanRepository(
             Log.d(TAG, "Client connected to server")
             protobufChannel = ProtobufChannel(inputStream, outputStream)
             _connectionState.value = ConnectionState.Connected("[Client]", isServer = true)
+            scope.launch { handleServerSession() }
         }
 
         override fun onDisconnected() {
@@ -114,6 +115,43 @@ class LanRepository(
         override fun onError(error: Throwable) {
             Log.e(TAG, "Server socket error", error)
             _connectionState.value = ConnectionState.Error(error.message ?: "Unknown error")
+        }
+    }
+
+    private suspend fun handleServerSession() {
+        val channel = protobufChannel ?: return
+        try {
+            while (currentCoroutineContext().isActive) {
+                try {
+                    val request = channel.receiveAuthRequest()
+                    Log.d(TAG, "Received auth request from ${request.deviceName}")
+                    val result = authProvider.authenticate(request.deviceName, request.credentials.toByteArray())
+                    val response = AuthResponse.newBuilder().apply {
+                        success = result is AuthResult.Success
+                        message = when (result) {
+                            is AuthResult.Success -> "OK"
+                            is AuthResult.Failure -> result.message
+                        }
+                    }.build()
+                    channel.sendAuthResponse(response)
+                    Log.d(TAG, "Sent auth response: success=${response.success}")
+                } catch (e: Exception) {
+                    Log.d(TAG, "Auth exchange done, switching to message mode")
+                    break
+                }
+            }
+            while (currentCoroutineContext().isActive) {
+                try {
+                    val message = channel.receiveLanMessage()
+                    Log.d(TAG, "Server received message: ${message.payload}")
+                    _messages.emit(message)
+                } catch (e: Exception) {
+                    Log.d(TAG, "Message receive error", e)
+                    break
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Server session error", e)
         }
     }
 
@@ -171,12 +209,10 @@ class LanRepository(
             tcpClient = TcpSocketClient(callback = clientCallback)
             tcpClient!!.connect(peer.host.hostAddress ?: peer.host.toString(), peer.port)
 
-            // Connection successful
             currentPeerName = peer.name
             _connectionState.value = ConnectionState.Connected(peer.name, isServer = false)
 
-            // Perform authentication
-            authenticate()
+            scope.launch { handleClientSession() }
         } catch (e: Exception) {
             Log.e(TAG, "Connection failed", e)
             _connectionState.value = ConnectionState.Error("Connection failed: ${e.message}")
@@ -206,7 +242,8 @@ class LanRepository(
         }
     }
 
-    private suspend fun authenticate() {
+    private suspend fun handleClientSession() {
+        val channel = protobufChannel ?: return
         try {
             val credentials = authProvider.getCredentials()
             val authRequest = AuthRequest.newBuilder().apply {
@@ -215,20 +252,29 @@ class LanRepository(
                     this.credentials = com.google.protobuf.ByteString.copyFrom(credentials)
                 }
             }.build()
+            channel.sendAuthRequest(authRequest)
+            Log.d(TAG, "Sent auth request")
 
-            // Send auth request
-            protobufChannel?.sendAuthRequest(authRequest)
-
-            // Wait for response
-            val response = protobufChannel?.receiveAuthResponse()
-            if (response?.success == true) {
+            val response = channel.receiveAuthResponse()
+            if (response.success) {
                 Log.d(TAG, "Authentication successful")
             } else {
-                Log.w(TAG, "Authentication failed: ${response?.message}")
-                disconnect()
+                Log.w(TAG, "Authentication failed: ${response.message}")
+                return
+            }
+
+            while (currentCoroutineContext().isActive) {
+                try {
+                    val message = channel.receiveLanMessage()
+                    Log.d(TAG, "Client received message: ${message.payload}")
+                    _messages.emit(message)
+                } catch (e: Exception) {
+                    Log.d(TAG, "Message receive error", e)
+                    break
+                }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Authentication error", e)
+            Log.e(TAG, "Client session error", e)
         }
     }
 
