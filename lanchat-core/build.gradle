@@ -1,0 +1,51 @@
+plugins {
+    id 'com.android.library'
+    id 'com.google.protobuf'
+}
+
+android {
+    namespace = 'com.example.lanchat.core'
+    compileSdk 35
+
+    defaultConfig {
+        minSdk 24
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:4.34.1'
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.builtins {
+                java { option 'lite' }
+                kotlin { option 'lite' }
+            }
+        }
+    }
+}
+
+dependencies {
+    // Protobuf
+    api 'com.google.protobuf:protobuf-javalite:4.34.1'
+    api 'com.google.protobuf:protobuf-kotlin-lite:4.34.1'
+
+    // Coroutines
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+}
