@@ -119,10 +119,17 @@ class LanRepository(
     }
 
     private suspend fun handleServerSession() {
-        val channel = protobufChannel ?: return
+        Log.d(TAG, "handleServerSession: starting, channel=${protobufChannel}")
+        val channel = protobufChannel ?: run {
+            Log.e(TAG, "handleServerSession: channel is null!")
+            return
+        }
+        Log.d(TAG, "handleServerSession: channel ready")
         try {
-            while (currentCoroutineContext().isActive) {
+            var authDone = false
+            while (currentCoroutineContext().isActive && !authDone) {
                 try {
+                    Log.d(TAG, "handleServerSession: waiting for auth request...")
                     val request = channel.receiveAuthRequest()
                     Log.d(TAG, "Received auth request from ${request.deviceName}")
                     val result = authProvider.authenticate(request.deviceName, request.credentials.toByteArray())
@@ -135,9 +142,10 @@ class LanRepository(
                     }.build()
                     channel.sendAuthResponse(response)
                     Log.d(TAG, "Sent auth response: success=${response.success}")
+                    authDone = true
                 } catch (e: Exception) {
-                    Log.d(TAG, "Auth exchange done, switching to message mode")
-                    break
+                    Log.e(TAG, "Auth exchange error, exiting: ${e.message}")
+                    return
                 }
             }
             while (currentCoroutineContext().isActive) {
@@ -146,12 +154,12 @@ class LanRepository(
                     Log.d(TAG, "Server received message: ${message.payload}")
                     _messages.emit(message)
                 } catch (e: Exception) {
-                    Log.d(TAG, "Message receive error", e)
+                    Log.e(TAG, "Message receive error: ${e.message}")
                     break
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Server session error", e)
+            Log.e(TAG, "Server session error: ${e.message}")
         }
     }
 
@@ -211,8 +219,10 @@ class LanRepository(
 
             currentPeerName = peer.name
             _connectionState.value = ConnectionState.Connected(peer.name, isServer = false)
+            Log.d(TAG, "connectToPeer: launching handleClientSession")
 
             scope.launch { handleClientSession() }
+            Log.d(TAG, "connectToPeer: handleClientSession launched")
         } catch (e: Exception) {
             Log.e(TAG, "Connection failed", e)
             _connectionState.value = ConnectionState.Error("Connection failed: ${e.message}")
@@ -243,7 +253,12 @@ class LanRepository(
     }
 
     private suspend fun handleClientSession() {
-        val channel = protobufChannel ?: return
+        Log.d(TAG, "handleClientSession: starting, channel=${protobufChannel}")
+        val channel = protobufChannel ?: run {
+            Log.e(TAG, "handleClientSession: channel is null!")
+            return
+        }
+        Log.d(TAG, "handleClientSession: channel ready")
         try {
             val credentials = authProvider.getCredentials()
             val authRequest = AuthRequest.newBuilder().apply {

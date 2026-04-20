@@ -62,6 +62,7 @@ class ProtobufChannel(
         try {
             val payload = request.toByteArray()
             val frame = createFrame(payload)
+            Log.d(TAG, "sendAuthRequest: payload size=${payload.size}, frame size=${frame.size}")
             outputStream.write(frame)
             outputStream.flush()
             Log.d(TAG, "Sent AuthRequest")
@@ -127,29 +128,30 @@ class ProtobufChannel(
      * Read length-prefixed frame and return payload
      */
     private fun readFrame(): ByteArray {
-        // Read length prefix
         val lengthBuffer = ByteBuffer.allocate(LENGTH_BYTES)
-        var bytesRead = 0
-        while (bytesRead < LENGTH_BYTES) {
-            val read = inputStream.read(lengthBuffer.array(), bytesRead, LENGTH_BYTES - bytesRead)
-            if (read == -1) throw Exception("End of stream")
-            bytesRead += read
+        var totalRead = 0
+        while (totalRead < LENGTH_BYTES) {
+            val read = inputStream.read(lengthBuffer.array(), totalRead, LENGTH_BYTES - totalRead)
+            if (read == -1) throw Exception("End of stream reading length")
+            totalRead += read
         }
+        Log.d(TAG, "readFrame: read $totalRead length bytes: ${lengthBuffer.array().take(4).map { it.toInt() }}")
         lengthBuffer.flip()
         val length = lengthBuffer.int
+        Log.d(TAG, "readFrame: payload length = $length")
 
         if (length <= 0 || length > MAX_MESSAGE_SIZE) {
             throw Exception("Invalid message length: $length")
         }
 
-        // Read payload
         val payload = ByteArray(length)
-        bytesRead = 0
-        while (bytesRead < length) {
-            val read = inputStream.read(payload, bytesRead, length - bytesRead)
-            if (read == -1) throw Exception("End of stream")
-            bytesRead += read
+        totalRead = 0
+        while (totalRead < length) {
+            val read = inputStream.read(payload, totalRead, length - totalRead)
+            if (read == -1) throw Exception("End of stream reading payload")
+            totalRead += read
         }
+        Log.d(TAG, "readFrame: read $totalRead payload bytes")
 
         return payload
     }
