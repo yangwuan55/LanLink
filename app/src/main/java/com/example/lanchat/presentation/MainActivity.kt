@@ -9,6 +9,7 @@ import android.os.IBinder
 import android.util.Log
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -20,7 +21,8 @@ import com.example.lanchat.data.repository.LanRepository
 import com.ymr.lancomm.domain.model.ConnectionState
 import com.ymr.lancomm.domain.model.PeerInfo
 import com.example.lanchat.service.LanForegroundService
-import com.google.android.material.tabs.TabLayout
+import android.text.Editable
+import android.text.TextWatcher
 import kotlinx.coroutines.launch
 
 private const val TAG = "MainActivity"
@@ -33,16 +35,19 @@ class MainActivity : AppCompatActivity() {
     private var repository: LanRepository? = null
 
     // UI components
-    private lateinit var tabLayout: TabLayout
+    private lateinit var roleSelection: RadioGroup
+    private lateinit var secretKeyInput: EditText
     private lateinit var statusText: TextView
     private lateinit var startStopButton: Button
     private lateinit var messageInput: EditText
     private lateinit var sendButton: Button
     private lateinit var messageLog: RecyclerView
     private lateinit var peerList: ListView
+    private lateinit var peerListContainer: LinearLayout
     private lateinit var progressBar: ProgressBar
 
     private var isServerMode = true
+    private var currentSecretKey = ""
     private val messageAdapter = MessageAdapter()
     private lateinit var peerAdapter: PeerAdapter
 
@@ -70,13 +75,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
-        tabLayout = findViewById(R.id.tab_layout)
+        roleSelection = findViewById(R.id.role_selection)
+        secretKeyInput = findViewById(R.id.secret_key_input)
         statusText = findViewById(R.id.status_text)
         startStopButton = findViewById(R.id.start_stop_button)
         messageInput = findViewById(R.id.message_input)
         sendButton = findViewById(R.id.send_button)
         messageLog = findViewById(R.id.message_log)
         peerList = findViewById(R.id.peer_list)
+        peerListContainer = findViewById(R.id.peer_list_container)
         progressBar = findViewById(R.id.progress_bar)
 
         peerAdapter = PeerAdapter { peer -> onPeerSelected(peer) }
@@ -88,14 +95,21 @@ class MainActivity : AppCompatActivity() {
         peerList.adapter = peerAdapter
     }
 
-    private fun setupTabs() {
-        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                isServerMode = tab?.position == 0
-                updateUiForMode()
+    private fun setupRoleSelection() {
+        roleSelection.setOnCheckedChangeListener { _, checkedId ->
+            isServerMode = checkedId == R.id.radio_server
+            updateUiForMode()
+        }
+    }
+
+    private fun setupSecretKeyInput() {
+        secretKeyInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                currentSecretKey = s?.toString() ?: ""
+                viewModel.updateSharedSecret(currentSecretKey)
             }
-            override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
     }
 
@@ -111,7 +125,9 @@ class MainActivity : AppCompatActivity() {
                         LanForegroundService.stop(this)
                     }
                     is ConnectionState.Idle -> {
-                        viewModel.startServer()
+                        lifecycleScope.launch {
+                            viewModel.startServer()
+                        }
                         LanForegroundService.start(this)
                         bindService()
                     }
@@ -125,7 +141,9 @@ class MainActivity : AppCompatActivity() {
                 if (viewModel.connectionState.value is ConnectionState.Discovering) {
                     viewModel.stopDiscovery()
                 } else {
-                    viewModel.startDiscovery()
+                    lifecycleScope.launch {
+                        viewModel.startDiscovery()
+                    }
                 }
             }
         }
@@ -145,11 +163,17 @@ class MainActivity : AppCompatActivity() {
 
         Log.d(TAG, "Updating UI for mode: ${if (isServerMode) "Server" else "Client"}")
         if (isServerMode) {
-            peerList.visibility = ListView.GONE
-            startStopButton.text = if (viewModel.connectionState.value is ConnectionState.Connected) "Stop Server" else "Start Server"
+            peerListContainer.isVisible = false
+            startStopButton.text = when (viewModel.connectionState.value) {
+                is ConnectionState.Connected -> "停止服务"
+                else -> "开始匹配"
+            }
         } else {
-            peerList.visibility = ListView.VISIBLE
-            startStopButton.text = if (viewModel.connectionState.value is ConnectionState.Discovering) "Stop Discovery" else "Start Discovery"
+            peerListContainer.isVisible = true
+            startStopButton.text = when (viewModel.connectionState.value) {
+                is ConnectionState.Discovering -> "停止发现"
+                else -> "开始匹配"
+            }
         }
     }
 
@@ -160,7 +184,8 @@ class MainActivity : AppCompatActivity() {
 
         repository = LanRepository(applicationContext)
 
-        setupTabs()
+        setupRoleSelection()
+        setupSecretKeyInput()
         setupClickListeners()
         Log.d(TAG, "App initialization complete")
 

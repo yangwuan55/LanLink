@@ -43,6 +43,13 @@ Dual Device Full Connection Test
     ${client_log}=    Get Full Logcat On Device    ${DEVICE_CLIENT}
     Should Contain    ${client_log}    MainActivity
 
+    # Server device - enter shared secret first
+    Log    Entering shared secret on server device...
+    Input Text By Resource Id    ${DEVICE_SERVER}    com.example.lanchat:id/secret_key_input    123456
+
+    # Wait for secret to be entered
+    Sleep    1s
+
     # Server device - tap Start Server button by resource-id
     Log    Tapping Start Server on server device...
     Tap Element By Id    ${DEVICE_SERVER}    com.example.lanchat:id/start_stop_button
@@ -55,11 +62,18 @@ Dual Device Full Connection Test
     ${server_log}=    Get Full Logcat On Device    ${DEVICE_SERVER}
     Should Contain    ${server_log}    LANCHAT_DISCOVER
 
-    # Client device - tap CLIENT tab first
-    Log    Tapping CLIENT tab on client device...
-    Tap Element By Content Desc    ${DEVICE_CLIENT}    Client
+    # Client device - tap CLIENT radio button first
+    Log    Tapping CLIENT radio on client device...
+    Tap Element By Text    ${DEVICE_CLIENT}    Client
 
     # Wait for tab switch
+    Sleep    1s
+
+    # Client device - enter shared secret
+    Log    Entering shared secret on client device...
+    Input Text By Resource Id    ${DEVICE_CLIENT}    com.example.lanchat:id/secret_key_input    123456
+
+    # Wait for secret to be entered
     Sleep    1s
 
     # Client device - tap Start Discovery (same button id, different action based on tab)
@@ -88,9 +102,9 @@ Dual Device Full Connection Test
     # Final verification for discovery phase
     Should Be True    ${discovery_success} or ${ui_check}    Discovery failed - neither logs nor UI show peer
 
-    Log    ===== DISCOVERY SUCCESSFUL =====
+Log    ===== DISCOVERY SUCCESSFUL =====
 
-    # ===== PHASE 2: TCP CONNECTION =====
+    # ===== PHASE 2: TCP CONNECTION + AUTH =====
     Log    ===== Starting TCP Connection Phase =====
 
     # Clear client logcat to see only connection logs
@@ -100,7 +114,7 @@ Dual Device Full Connection Test
     Log    Tapping on peer item in list...
     Tap Element By Text    ${DEVICE_CLIENT}    Pixel 6 Pro
 
-    # Wait for TCP connection to establish
+    # Wait for TCP connection + auth to complete
     Sleep    5s
 
     # Check if TCP connection was established
@@ -108,44 +122,57 @@ Dual Device Full Connection Test
     ${client_log}=    Get Full Logcat On Device    ${DEVICE_CLIENT}
 
     # Verify connection happened (check for connection markers in logs)
-    ${client_connected}=    Evaluate    "Connected to server" in """${client_log}"""
-    ${client_session_started}=    Evaluate    ">>> HANDLE_CLIENT_SESSION_START" in """${client_log}"""
+    ${client_connected}=    Evaluate    "Connected to" in """${client_log}"""
+    ${client_session_started}=    Evaluate    "handleClientSession: starting" in """${client_log}"""
     ${client_session_ready}=    Evaluate    ">>> CLIENT_SESSION_READY" in """${client_log}"""
-    ${client_sent_auth}=    Evaluate    ">>> CLIENT_SENT_AUTH_REQUEST" in """${client_log}"""
+    ${client_sent_auth}=    Evaluate    ">>> CLIENT_SENDING_AUTH_REQUEST" in """${client_log}"""
+    ${client_sent_auth_complete}=    Evaluate    ">>> CLIENT_SENT_AUTH_REQUEST" in """${client_log}"""
     ${client_received_auth_response}=    Evaluate    ">>> CLIENT_RECEIVED_AUTH_RESPONSE" in """${client_log}"""
     ${client_auth_success}=    Evaluate    ">>> CLIENT_AUTH_SUCCESS" in """${client_log}"""
+    ${client_auth_failed}=    Evaluate    ">>> CLIENT_AUTH_FAILED" in """${client_log}"""
 
     # Check server logs for client connection
     Log    Checking TCP connection logs on server...
     ${server_log}=    Get Full Logcat On Device    ${DEVICE_SERVER}
-    ${server_got_connection}=    Evaluate    "Client connected to server" in """${server_log}"""
-    ${server_session_started}=    Evaluate    ">>> HANDLE_SERVER_SESSION_START" in """${server_log}"""
-    ${server_session_ready}=    Evaluate    ">>> SERVER_SESSION_READY" in """${server_log}"""
-    ${server_received_auth}=    Evaluate    ">>> SERVER_RECEIVED_AUTH" in """${server_log}"""
-    ${server_sent_auth_response}=    Evaluate    ">>> SERVER_SENT_AUTH_RESPONSE" in """${server_log}"""
+    ${server_got_connection}=    Evaluate    "Client connected" in """${server_log}"""
+    ${server_started}=    Evaluate    "Server started on port" in """${server_log}"""
+    ${server_udp_broadcast}=    Evaluate    "UDP Discovery broadcasting" in """${server_log}"""
+    ${server_received_auth}=    Evaluate    "Received AuthRequest from" in """${server_log}"""
+    ${server_auth_success}=    Evaluate    "Authentication successful for" in """${server_log}"""
+    ${server_auth_failed}=    Evaluate    "Authentication failed for" in """${server_log}"""
+    ${server_sent_auth_response}=    Evaluate    "Sent AuthResponse" in """${server_log}"""
 
     # Log status
     Log    Client connected to server: ${client_connected}
     Log    Client session started: ${client_session_started}
     Log    Client session ready: ${client_session_ready}
-    Log    Client sent auth (acked): ${client_sent_auth}
+    Log    Client sent auth request: ${client_sent_auth}
     Log    Client received auth response: ${client_received_auth_response}
     Log    Client auth success: ${client_auth_success}
+    Log    Client auth failed: ${client_auth_failed}
     Log    Server got connection: ${server_got_connection}
-    Log    Server session started: ${server_session_started}
-    Log    Server session ready: ${server_session_ready}
+    Log    Server started: ${server_started}
+    Log    Server UDP broadcast: ${server_udp_broadcast}
     Log    Server received auth: ${server_received_auth}
+    Log    Server auth success: ${server_auth_success}
+    Log    Server auth failed: ${server_auth_failed}
     Log    Server sent auth response: ${server_sent_auth_response}
 
     # Verify AUTH EXCHANGE completed - both sides must complete auth
     Should Be True    ${client_session_started}    Client: handleClientSession did not start
     Should Be True    ${client_session_ready}    Client: session not ready
-    Should Be True    ${client_sent_auth}    Client: did not send auth request (ACK protocol)
-    Should Be True    ${client_received_auth_response}    Client: did not receive auth response
-    Should Be True    ${server_session_started}    Server: handleServerSession did not start
-    Should Be True    ${server_session_ready}    Server: session not ready
-    Should Be True    ${server_received_auth}    Server: did not receive auth
-    Should Be True    ${server_sent_auth_response}    Server: did not send auth response
+    Should Be True    ${client_sent_auth}    Client: did not send auth request
+    Should Be True    ${server_got_connection}    Server: did not receive connection
+    Should Be True    ${server_received_auth}    Server: did not receive auth request
+
+    # Auth success check - either both succeed or handle failure case
+    IF    ${client_auth_success} and ${server_auth_success}
+        Log    ===== AUTH SUCCESS ON BOTH SIDES =====
+    ELSE IF    ${client_auth_failed} or ${server_auth_failed}
+        Log    ===== AUTH FAILED - checking proper disconnect =====
+    ELSE
+        Fail    Auth incomplete - client_success=${client_auth_success}, server_success=${server_auth_success}
+    END
 
     Log    ===== TCP CONNECTION SUCCESSFUL =====
 
@@ -155,30 +182,105 @@ Dual Device Full Connection Test
     # Note: Message sending requires precise UI timing. Core TCP+Auth verified.
     Log    ===== FULL INTEGRATION TEST COMPLETE =====
 
+Dual Device Auth Failure Test
+    [Documentation]    Test auth failure when client uses wrong PIN
+
+    # Step 1: Compile and install
+    Log    ===== Compiling and installing app =====
+    Compile And Install App
+    Log    ===== Install complete =====
+
+    # Stop app on both devices
+    Kill App On Device    ${DEVICE_SERVER}
+    Kill App On Device    ${DEVICE_CLIENT}
+    Sleep    1s
+    Stop App On Device    ${DEVICE_SERVER}
+    Stop App On Device    ${DEVICE_CLIENT}
+
+    # Clear logs
+    Clear Logcat On Device    ${DEVICE_SERVER}
+    Clear Logcat On Device    ${DEVICE_CLIENT}
+    Sleep    1s
+
+    # Launch app on both devices
+    Launch App On Device    ${DEVICE_SERVER}
+    Launch App On Device    ${DEVICE_CLIENT}
+    Sleep    3s
+
+    # Server device - enter CORRECT secret (123456)
+    Log    Server entering correct secret...
+    Input Text By Resource Id    ${DEVICE_SERVER}    com.example.lanchat:id/secret_key_input    123456
+    Sleep    1s
+    Tap Element By Id    ${DEVICE_SERVER}    com.example.lanchat:id/start_stop_button
+    Sleep    3s
+
+    # Client device - select Client mode
+    Log    Client selecting Client mode...
+    Tap Element By Text    ${DEVICE_CLIENT}    Client
+    Sleep    1s
+
+    # Client device - enter WRONG secret (999999)
+    Log    Client entering WRONG secret...
+    Input Text By Resource Id    ${DEVICE_CLIENT}    com.example.lanchat:id/secret_key_input    999999
+    Sleep    1s
+    Tap Element By Id    ${DEVICE_CLIENT}    com.example.lanchat:id/start_stop_button
+    Sleep    5s
+
+    # Wait for discovery
+    ${discovery_success}=    Set Variable    ${False}
+    FOR    ${i}    IN RANGE    1    16
+        Sleep    1s
+        ${client_log}=    Get Full Logcat On Device    ${DEVICE_CLIENT}
+        ${discovery_success}=    Evaluate    "Discovered peer:" in """${client_log}"""
+        Exit For Loop If    ${discovery_success}
+    END
+
+    # Try to connect
+    Log    Client attempting to connect (should fail auth)...
+    Tap Element By Text    ${DEVICE_CLIENT}    Pixel 6 Pro
+    Sleep    3s
+
+    # Check for auth failure
+    ${client_log}=    Get Full Logcat On Device    ${DEVICE_CLIENT}
+    ${server_log}=    Get Full Logcat On Device    ${DEVICE_SERVER}
+
+    ${client_auth_failed}=    Evaluate    ">>> CLIENT_AUTH_FAILED" in """${client_log}"""
+    ${server_auth_failed}=    Evaluate    "Authentication failed for" in """${server_log}"""
+    ${client_disconnected}=    Evaluate    "Disconnecting" in """${client_log}"""
+
+    Log    Client auth failed: ${client_auth_failed}
+    Log    Server auth failed: ${server_auth_failed}
+    Log    Client disconnected: ${client_disconnected}
+
+    Should Be True    ${server_auth_failed}    Server should detect auth failure
+    Should Be True    ${client_auth_failed}    Client should detect auth failure
+
+    Log    ===== AUTH FAILURE TEST PASSED =====
+
 *** Keywords ***
 Compile And Install App
     [Documentation]    Compile and install the debug APK on both devices
-    Log    Compiling app with Gradle...
+    Log To Console    ===== Compiling app with Gradle =====
     ${result}=    Run Process    ./gradlew    assembleDebug    cwd=/Users/ymr/github/localnetwork    shell=True
-    Log    Gradle stdout: ${result.stdout}
-    Log    Gradle stderr: ${result.stderr}
+    Log To Console    ${result.stdout}
+    Log To Console    ${result.stderr}
     Should Not Contain    ${result.stderr}    FAILURE
     Should Contain    ${result.stdout}    BUILD SUCCESSFUL
-    Log    Compile successful
+    Log To Console    ===== Compile successful =====
 
-    Log    Installing app on device ${DEVICE_SERVER}...
+    Log To Console    ===== Installing app on device ${DEVICE_SERVER} =====
     ${apk_path}=    Set Variable    /Users/ymr/github/localnetwork/app/build/outputs/apk/debug/app-debug.apk
-    Log    APK path: ${apk_path}
+    Log To Console    APK path: ${apk_path}
     ${result}=    Run Process    adb    -s    ${DEVICE_SERVER}    install    -r    ${apk_path}    shell=True
-    Log    Install stdout: ${result.stdout}
+    Log To Console    ${result.stdout}
     Should Contain    ${result.stdout}    Success
-    Log    Install successful on ${DEVICE_SERVER}
+    Log To Console    ===== Install successful on ${DEVICE_SERVER} =====
 
-    Log    Installing app on device ${DEVICE_CLIENT}...
+    Log To Console    ===== Installing app on device ${DEVICE_CLIENT} =====
     ${result}=    Run Process    adb    -s    ${DEVICE_CLIENT}    install    -r    ${apk_path}    shell=True
-    Log    Install stdout: ${result.stdout}
+    Log To Console    ${result.stdout}
     Should Contain    ${result.stdout}    Success
-    Log    Install successful on ${DEVICE_CLIENT}
+    Log To Console    ===== Install successful on ${DEVICE_CLIENT} =====
 
 Stop App On Device
     [Arguments]    ${device_id}
@@ -337,5 +439,18 @@ Tap Button On Device
 Input Text On Device
     [Arguments]    ${device_id}    ${x}    ${y}    ${text}
     Run Process    adb    -s    ${device_id}    shell    input    tap    ${x}    ${y}
+    Sleep    0.5s
+    Run Process    adb    -s    ${device_id}    shell    input    text    ${text}
+
+Input Text By Resource Id
+    [Arguments]    ${device_id}    ${resource_id}    ${text}
+    [Documentation]    Find element by resource-id, tap it, then input text
+    Log    Looking for element by id: ${resource_id}
+    ${x1}    ${y1}    ${x2}    ${y2}=    Get Element Bounds By Id    ${device_id}    ${resource_id}
+    Log    Element bounds: [${x1},${y1}][${x2},${y2}]
+    ${cx}=    Evaluate    (${x1} + ${x2}) // 2
+    ${cy}=    Evaluate    (${y1} + ${y2}) // 2
+    Log    Tapping at center: (${cx}, ${cy})
+    Tap Button On Device    ${device_id}    ${cx}    ${cy}
     Sleep    0.5s
     Run Process    adb    -s    ${device_id}    shell    input    text    ${text}

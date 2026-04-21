@@ -13,6 +13,7 @@ import com.ymr.lancomm.domain.model.ConnectionState
 import com.ymr.lancomm.proto.LanMessage as ProtoLanMessage
 import com.ymr.lancomm.domain.model.PeerInfo
 import com.ymr.lancomm.proto.AuthRequest
+import com.ymr.lancomm.proto.AuthResponse
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
@@ -71,7 +72,7 @@ class LanRepository(
 
         try {
             Log.d(TAG, "Creating TCP server...")
-            tcpServer = TcpSocketServer(port = 0)
+            tcpServer = TcpSocketServer(port = 0, authProvider = authProvider)
             serverPort = tcpServer!!.start()
             Log.d(TAG, "TCP Server started on port $serverPort")
 
@@ -202,6 +203,10 @@ class LanRepository(
             Log.e(TAG, "handleClientSession: tcpClient is null!")
             return
         }
+        val channel = client.protobufChannel ?: run {
+            Log.e(TAG, "handleClientSession: protobufChannel is null!")
+            return
+        }
         Log.d(TAG, "handleClientSession: client ready")
         Log.d(TAG, ">>> CLIENT_SESSION_READY")
 
@@ -214,15 +219,22 @@ class LanRepository(
                 }
             }.build()
 
-            val authRequestBytes = authRequest.toByteArray()
             Log.d(TAG, ">>> CLIENT_SENDING_AUTH_REQUEST")
-            client.send(authRequestBytes)
+            channel.sendAuthRequest(authRequest)
             Log.d(TAG, ">>> CLIENT_SENT_AUTH_REQUEST")
 
-            kotlinx.coroutines.delay(1000)
-            Log.d(TAG, ">>> CLIENT_AUTH_COMPLETE")
+            val authResponse = channel.receiveAuthResponse()
+            Log.d(TAG, ">>> CLIENT_RECEIVED_AUTH_RESPONSE: success=${authResponse.success}")
+
+            if (authResponse.success) {
+                Log.d(TAG, ">>> CLIENT_AUTH_SUCCESS")
+            } else {
+                Log.w(TAG, ">>> CLIENT_AUTH_FAILED: ${authResponse.message}")
+                disconnect()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Client session error", e)
+            disconnect()
         }
     }
 

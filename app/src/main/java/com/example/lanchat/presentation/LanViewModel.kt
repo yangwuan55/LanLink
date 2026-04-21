@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.lanchat.data.repository.LanRepository
+import com.ymr.lancomm.data.auth.InMemoryAuthProvider
 import com.ymr.lancomm.domain.auth.AuthProvider
 import com.ymr.lancomm.domain.model.ConnectionState
 import com.ymr.lancomm.domain.model.LanMessage
@@ -12,6 +13,17 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class LanViewModel(application: Application) : AndroidViewModel(application) {
+
+    enum class Role {
+        Server, Client
+    }
+
+    sealed class AuthState {
+        object Idle : AuthState()
+        object Authenticating : AuthState()
+        object AuthSuccess : AuthState()
+        data class AuthFailed(val reason: String) : AuthState()
+    }
 
     private var repository: LanRepository? = null
     private var isTestMode = false
@@ -63,6 +75,15 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
     private val _messages = MutableStateFlow<List<LanMessage>>(emptyList())
     val messages: StateFlow<List<LanMessage>> = _messages.asStateFlow()
 
+    private val _sharedSecret = MutableStateFlow("")
+    val sharedSecret: StateFlow<String> = _sharedSecret.asStateFlow()
+
+    private val _selectedRole = MutableStateFlow(Role.Client)
+    val selectedRole: StateFlow<Role> = _selectedRole.asStateFlow()
+
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
+    val authState: StateFlow<AuthState> = _authState.asStateFlow()
+
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
@@ -77,6 +98,10 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         val context = getApplication<Application>().applicationContext
         repository = LanRepository(context, authProvider ?: com.ymr.lancomm.data.auth.NoOpAuthProvider())
         observeRepositoryState()
+    }
+
+    fun updateSharedSecret(secret: String) {
+        _sharedSecret.value = secret
     }
 
     private fun observeRepositoryState() {
@@ -124,6 +149,12 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
     fun startServer() {
         viewModelScope.launch {
             _uiState.update { it.copy(isServerMode = true, statusMessage = "Starting server...") }
+            _authState.value = AuthState.Authenticating
+            val secret = _sharedSecret.value.ifEmpty { "1234" }
+            val authProvider = InMemoryAuthProvider(secret)
+            val context = getApplication<Application>().applicationContext
+            repository = LanRepository(context, authProvider)
+            observeRepositoryState()
             repository?.startServer()
         }
     }
@@ -131,12 +162,19 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
     fun stopServer() {
         repository?.stopServer()
         _uiState.update { it.copy(isServerMode = false, statusMessage = "Server stopped") }
+        _authState.value = AuthState.Idle
     }
 
     // Client actions
     fun startDiscovery() {
         viewModelScope.launch {
             _uiState.update { it.copy(isServerMode = false, statusMessage = "Starting discovery...") }
+            _authState.value = AuthState.Authenticating
+            val secret = _sharedSecret.value.ifEmpty { "1234" }
+            val authProvider = InMemoryAuthProvider(secret)
+            val context = getApplication<Application>().applicationContext
+            repository = LanRepository(context, authProvider)
+            observeRepositoryState()
             repository?.startDiscovery()
         }
     }

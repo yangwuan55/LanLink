@@ -5,21 +5,41 @@
     android:orientation="vertical"
     android:fitsSystemWindows="true">
 
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/tab_layout"
+    <RadioGroup
+        android:id="@+id/role_selection"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-        <com.google.android.material.tabs.TabItem
-            android:id="@+id/tab_server"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <RadioButton
+            android:id="@+id/radio_server"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Server" />
-        <com.google.android.material.tabs.TabItem
-            android:id="@+id/tab_client"
+            android:text="Server"
+            android:checked="true" />
+
+        <RadioButton
+            android:id="@+id/radio_client"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Client" />
-    </com.google.android.material.tabs.TabLayout>
+            android:text="Client"
+            android:layout_marginStart="24dp" />
+    </RadioGroup>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="8dp">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/secret_key_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="共享秘钥（6位数字）"
+            android:inputType="numberPassword"
+            android:maxLength="6" />
+    </com.google.android.material.textfield.TextInputLayout>
 
     <TextView
         android:id="@+id/status_text"
@@ -35,12 +55,27 @@
         android:layout_height="wrap_content"
         android:visibility="gone" />
 
-    <ListView
-        android:id="@+id/peer_list"
+    <LinearLayout
+        android:id="@+id/peer_list_container"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:visibility="gone" />
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Discovered Peers"
+            android:textSize="14sp"
+            android:paddingHorizontal="8dp"
+            android:paddingTop="4dp" />
+
+        <ListView
+            android:id="@+id/peer_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/message_log"
@@ -71,6 +106,6 @@
         android:id="@+id/start_stop_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Start Server" />
+        android:text="开始匹配" />
 
 </LinearLayout>

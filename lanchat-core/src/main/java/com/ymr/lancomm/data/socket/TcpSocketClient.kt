@@ -1,8 +1,10 @@
 package com.ymr.lancomm.data.socket
 
 import android.util.Log
+import com.google.protobuf.ByteString
 import com.ymr.lancomm.domain.model.ConnectionState
 import com.ymr.lancomm.domain.model.PeerInfo
+import com.ymr.lancomm.proto.LanMessage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,10 +12,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.io.BufferedReader
-import java.io.BufferedWriter
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
 import java.net.Socket
 import java.net.SocketException
 import java.net.UnknownHostException
@@ -24,6 +22,9 @@ import java.net.UnknownHostException
  */
 class TcpSocketClient {
     private var socket: Socket? = null
+    private var _protobufChannel: ProtobufChannel? = null
+    val protobufChannel: ProtobufChannel?
+        get() = _protobufChannel
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var readLoopJob: Job? = null
 
@@ -52,7 +53,10 @@ class TcpSocketClient {
                 socket = Socket(peer.host.hostAddress, peer.port).apply {
                     soTimeout = 0  // No timeout
                 }
-                
+
+                // Create ProtobufChannel for protobuf-based communication
+                _protobufChannel = ProtobufChannel(socket!!.getInputStream(), socket!!.getOutputStream())
+
                 _connectionState.value = ConnectionState.Connected(peer.name, false)
                 currentRetry = 0
                 Log.d(TAG, "Connected to ${peer.host}:${peer.port}")
@@ -88,22 +92,14 @@ class TcpSocketClient {
 
     private suspend fun readLoop() = withContext(Dispatchers.IO) {
         socket?.let { sock ->
+            val channel = _protobufChannel ?: return@withContext
             try {
-                val reader = BufferedReader(InputStreamReader(sock.getInputStream()))
-
                 while (_connectionState.value is ConnectionState.Connected && !sock.isClosed) {
                     try {
-                        val line = reader.readLine()
-                        if (line != null) {
-                            val bytes = line.toByteArray()
-                            Log.d(TAG, "Received ${bytes.size} bytes")
-                            _messages.emit(bytes)
-                        } else {
-                            // Server disconnected
-                            Log.d(TAG, "Server disconnected")
-                            _connectionState.value = ConnectionState.Idle
-                            break
-                        }
+                        val lanMessage = channel.receiveLanMessage()
+                        val bytes = lanMessage.payload.toByteArray()
+                        Log.d(TAG, "Received ${bytes.size} bytes")
+                        _messages.emit(bytes)
                     } catch (e: SocketException) {
                         Log.d(TAG, "Read error", e)
                         break
@@ -118,26 +114,25 @@ class TcpSocketClient {
     }
 
     suspend fun send(message: ByteArray) = withContext(Dispatchers.IO) {
-        socket?.let { sock ->
-            try {
-                val writer = BufferedWriter(OutputStreamWriter(sock.getOutputStream()))
-                writer.write(String(message, Charsets.UTF_8))
-                writer.newLine()
-                writer.flush()
-                Log.d(TAG, "Sent ${message.size} bytes")
-            } catch (e: Exception) {
-                Log.e(TAG, "Send error", e)
-                throw e
-            }
-        } ?: run {
-            Log.w(TAG, "Not connected, cannot send")
-            throw IllegalStateException("Not connected")
+        val channel = _protobufChannel ?: throw IllegalStateException("Not connected")
+        try {
+            val lanMessage = LanMessage.newBuilder()
+                .setId(java.util.UUID.randomUUID().toString())
+                .setTimestamp(System.currentTimeMillis())
+                .setPayload(ByteString.copyFrom(message))
+                .build()
+            channel.send(lanMessage)
+            Log.d(TAG, "Sent ${message.size} bytes")
+        } catch (e: Exception) {
+            Log.e(TAG, "Send error", e)
+            throw e
         }
     }
 
     fun disconnect() {
         _connectionState.value = ConnectionState.Idle
         readLoopJob?.cancel()
+        _protobufChannel = null
         try {
             socket?.close()
         } catch (e: Exception) {

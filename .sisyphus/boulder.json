@@ -1,13 +1,12 @@
 {
-  "active_plan": "/Users/ymr/github/localnetwork/.sisyphus/plans/lanchat-core-framework.md",
-  "started_at": "2026-04-20T09:37:28.259Z",
+  "active_plan": "/Users/ymr/github/localnetwork/.sisyphus/plans/lanchat-auto-discovery-auth.md",
+  "started_at": "2026-04-21T07:15:13.629Z",
   "session_ids": [
-    "ses_26547d71fffeGgnCJFiclVDbWw"
+    "ses_251cfb80effeztU3HLfYDHo1CO"
   ],
   "session_origins": {
-    "ses_26547d71fffeGgnCJFiclVDbWw": "direct"
+    "ses_251cfb80effeztU3HLfYDHo1CO": "direct"
   },
-  "plan_name": "lanchat-core-framework",
-  "agent": "Sisyphus (Ultraworker)",
-  "task_sessions": {}
+  "plan_name": "lanchat-auto-discovery-auth",
+  "agent": "Sisyphus (Ultraworker)"
 }
