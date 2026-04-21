@@ -4,10 +4,10 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.lanchat.data.repository.LanRepository
-import com.example.lanchat.domain.auth.AuthProvider
-import com.example.lanchat.domain.model.ConnectionState
-import com.example.lanchat.domain.model.LanMessage
-import com.example.lanchat.domain.model.PeerInfo
+import com.ymr.lancomm.domain.auth.AuthProvider
+import com.ymr.lancomm.domain.model.ConnectionState
+import com.ymr.lancomm.domain.model.LanMessage
+import com.ymr.lancomm.domain.model.PeerInfo
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -47,12 +47,7 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             messagesFlow.collect { messageList ->
-                messageList.forEach { protoMessage ->
-                    val domainMessage = LanMessage(
-                        id = protoMessage.id,
-                        timestamp = protoMessage.timestamp,
-                        payload = protoMessage.payload
-                    )
+                messageList.forEach { domainMessage ->
                     _messages.value = _messages.value + domainMessage
                 }
             }
@@ -80,7 +75,7 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
     fun initialize(authProvider: AuthProvider? = null) {
         if (isTestMode) return
         val context = getApplication<Application>().applicationContext
-        repository = LanRepository(context, authProvider ?: com.example.lanchat.data.auth.NoOpAuthProvider())
+        repository = LanRepository(context, authProvider ?: com.ymr.lancomm.data.auth.NoOpAuthProvider())
         observeRepositoryState()
     }
 
@@ -103,7 +98,7 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
                 val domainMessage = LanMessage(
                     id = protoMessage.id,
                     timestamp = protoMessage.timestamp,
-                    payload = protoMessage.payload
+                    payload = protoMessage.payload.toStringUtf8()
                 )
                 _messages.value = _messages.value + domainMessage
             }

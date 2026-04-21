@@ -1,0 +1,2050 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 7.4.2 (Python 3.13.5 on darwin)" generated="2026-04-20T16:48:16.228393" rpa="false" schemaversion="5">
+<suite id="s1" name="Dual Device Test" source="/Users/ymr/github/localnetwork/tests/dual_device_test.robot">
+<test id="s1-t1" name="Dual Device Full Connection Test" line="11">
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:16.252481" level="INFO">===== Compiling and installing app =====</msg>
+<arg>===== Compiling and installing app =====</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:16.252327" elapsed="0.000187"/>
+</kw>
+<kw name="Compile And Install App">
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:16.252827" level="INFO">Compiling app with Gradle...</msg>
+<arg>Compiling app with Gradle...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:16.252751" elapsed="0.000094"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:16.253018" level="INFO">Starting process:
+./gradlew assembleDebug</msg>
+<msg time="2026-04-20T16:48:16.255016" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:18.334116" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:18.334438" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>./gradlew</arg>
+<arg>assembleDebug</arg>
+<arg>cwd=/Users/ymr/github/localnetwork</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:16.252882" elapsed="2.081578"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:18.335273" level="INFO">Gradle stdout: &gt; Task :app:preBuild UP-TO-DATE
+&gt; Task :app:preDebugBuild UP-TO-DATE
+&gt; Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+&gt; Task :app:generateDebugResources UP-TO-DATE
+&gt; Task :app:packageDebugResources UP-TO-DATE
+&gt; Task :lanchat-core:preBuild UP-TO-DATE
+&gt; Task :lanchat-core:preDebugBuild UP-TO-DATE
+&gt; Task :lanchat-core:processDebugNavigationResources UP-TO-DATE
+&gt; Task :app:processDebugNavigationResources UP-TO-DATE
+&gt; Task :app:parseDebugLocalResources UP-TO-DATE
+&gt; Task :app:generateDebugRFile UP-TO-DATE
+&gt; Task :lanchat-core:protobufDummy UP-TO-DATE
+&gt; Task :lanchat-core:extractDebugProto UP-TO-DATE
+&gt; Task :lanchat-core:extractIncludeDebugProto UP-TO-DATE
+&gt; Task :lanchat-core:extractProto UP-TO-DATE
+&gt; Task :lanchat-core:generateDebugProto UP-TO-DATE
+&gt; Task :lanchat-core:generateDebugResources UP-TO-DATE
+&gt; Task :lanchat-core:packageDebugResources UP-TO-DATE
+&gt; Task :lanchat-core:parseDebugLocalResources UP-TO-DATE
+&gt; Task :lanchat-core:generateDebugRFile UP-TO-DATE
+&gt; Task :lanchat-core:compileDebugKotlin UP-TO-DATE
+&gt; Task :lanchat-core:javaPreCompileDebug UP-TO-DATE
+&gt; Task :lanchat-core:compileDebugJavaWithJavac UP-TO-DATE
+&gt; Task :lanchat-core:bundleLibCompileToJarDebug UP-TO-DATE
+&gt; Task :app:compileDebugKotlin UP-TO-DATE
+&gt; Task :app:javaPreCompileDebug UP-TO-DATE
+&gt; Task :app:compileDebugJavaWithJavac NO-SOURCE
+&gt; Task :app:generateDebugAssets UP-TO-DATE
+&gt; Task :lanchat-core:generateDebugAssets UP-TO-DATE
+&gt; Task :lanchat-core:mergeDebugAssets UP-TO-DATE
+&gt; Task :app:mergeDebugAssets UP-TO-DATE
+&gt; Task :app:compressDebugAssets UP-TO-DATE
+&gt; Task :lanchat-core:bundleLibRuntimeToJarDebug UP-TO-DATE
+&gt; Task :app:desugarDebugFileDependencies UP-TO-DATE
+&gt; Task :lanchat-core:writeDebugAarMetadata UP-TO-DATE
+&gt; Task :app:checkDebugAarMetadata UP-TO-DATE
+&gt; Task :app:mapDebugSourceSetPaths UP-TO-DATE
+&gt; Task :app:compileDebugNavigationResources UP-TO-DATE
+&gt; Task :app:mergeDebugResources UP-TO-DATE
+&gt; Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+&gt; Task :app:extractDeepLinksDebug UP-TO-DATE
+&gt; Task :lanchat-core:extractDeepLinksDebug UP-TO-DATE
+&gt; Task :lanchat-core:processDebugManifest UP-TO-DATE
+&gt; Task :app:processDebugMainManifest UP-TO-DATE
+&gt; Task :app:processDebugManifest UP-TO-DATE
+&gt; Task :app:processDebugManifestForPackage UP-TO-DATE
+&gt; Task :lanchat-core:mapDebugSourceSetPaths UP-TO-DATE
+&gt; Task :lanchat-core:compileDebugLibraryResources UP-TO-DATE
+&gt; Task :app:processDebugResources UP-TO-DATE
+&gt; Task :app:dexBuilderDebug UP-TO-DATE
+&gt; Task :app:mergeDebugGlobalSynthetics UP-TO-DATE
+&gt; Task :app:processDebugJavaRes UP-TO-DATE
+&gt; Task :lanchat-core:processDebugProtoResources UP-TO-DATE
+&gt; Task :lanchat-core:processDebugJavaRes UP-TO-DATE
+&gt; Task :app:mergeDebugJavaResource UP-TO-DATE
+&gt; Task :app:checkDebugDuplicateClasses UP-TO-DATE
+&gt; Task :app:mergeExtDexDebug UP-TO-DATE
+&gt; Task :lanchat-core:bundleLibRuntimeToDirDebug UP-TO-DATE
+&gt; Task :app:mergeProjectDexDebug UP-TO-DATE
+&gt; Task :app:mergeDebugJniLibFolders UP-TO-DATE
+&gt; Task :lanchat-core:mergeDebugJniLibFolders UP-TO-DATE
+&gt; Task :lanchat-core:mergeDebugNativeLibs NO-SOURCE
+&gt; Task :app:mergeLibDexDebug UP-TO-DATE
+&gt; Task :lanchat-core:copyDebugJniLibsProjectOnly UP-TO-DATE
+&gt; Task :app:mergeDebugNativeLibs NO-SOURCE
+&gt; Task :app:stripDebugDebugSymbols NO-SOURCE
+&gt; Task :app:validateSigningDebug UP-TO-DATE
+&gt; Task :app:writeDebugAppMetadata UP-TO-DATE
+&gt; Task :app:writeDebugSigningConfigVersions UP-TO-DATE
+&gt; Task :app:packageDebug UP-TO-DATE
+&gt; Task :app:createDebugApkListingFileRedirect UP-TO-DATE
+&gt; Task :app:assembleDebug UP-TO-DATE
+&gt; Task :lanchat-core:checkDebugAarMetadata UP-TO-DATE
+&gt; Task :lanchat-core:stripDebugDebugSymbols NO-SOURCE
+&gt; Task :lanchat-core:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+&gt; Task :lanchat-core:extractDebugAnnotations UP-TO-DATE
+&gt; Task :lanchat-core:extractDeepLinksForAarDebug UP-TO-DATE
+&gt; Task :lanchat-core:mergeDebugGeneratedProguardFiles UP-TO-DATE
+&gt; Task :lanchat-core:mergeDebugConsumerProguardFiles UP-TO-DATE
+&gt; Task :lanchat-core:prepareDebugArtProfile UP-TO-DATE
+&gt; Task :lanchat-core:prepareLintJarForPublish UP-TO-DATE
+&gt; Task :lanchat-core:mergeDebugJavaResource UP-TO-DATE
+&gt; Task :lanchat-core:syncDebugLibJars UP-TO-DATE
+&gt; Task :lanchat-core:bundleDebugAar UP-TO-DATE
+&gt; Task :lanchat-core:assembleDebug UP-TO-DATE
+
+BUILD SUCCESSFUL in 1s
+70 actionable tasks: 70 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.3.1/userguide/configuration_cache_enabling.html</msg>
+<arg>Gradle stdout: ${result.stdout}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:18.334681" elapsed="0.000631"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:18.335650" level="INFO">Gradle stderr: </msg>
+<arg>Gradle stderr: ${result.stderr}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:18.335361" elapsed="0.000311"/>
+</kw>
+<kw name="Should Not Contain" owner="BuiltIn">
+<arg>${result.stderr}</arg>
+<arg>FAILURE</arg>
+<doc>Fails if ``container`` contains ``item`` one or more times.</doc>
+<status status="PASS" start="2026-04-20T16:48:18.335725" elapsed="0.000638"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${result.stdout}</arg>
+<arg>BUILD SUCCESSFUL</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="PASS" start="2026-04-20T16:48:18.336432" elapsed="0.000276"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:18.336833" level="INFO">Compile successful</msg>
+<arg>Compile successful</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:18.336757" elapsed="0.000092"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:18.336955" level="INFO">Installing app on device 1B221FDEE0033R...</msg>
+<arg>Installing app on device ${DEVICE_SERVER}...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:18.336884" elapsed="0.000084"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-04-20T16:48:18.337183" level="INFO">${apk_path} = /Users/ymr/github/localnetwork/app/build/outputs/apk/debug/app-debug.apk</msg>
+<var>${apk_path}</var>
+<arg>/Users/ymr/github/localnetwork/app/build/outputs/apk/debug/app-debug.apk</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-04-20T16:48:18.337005" elapsed="0.000309"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:18.337539" level="INFO">APK path: /Users/ymr/github/localnetwork/app/build/outputs/apk/debug/app-debug.apk</msg>
+<arg>APK path: ${apk_path}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:18.337345" elapsed="0.000208"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:18.337863" level="INFO">Starting process:
+adb -s 1B221FDEE0033R install -r /Users/ymr/github/localnetwork/app/build/outputs/apk/debug/app-debug.apk</msg>
+<msg time="2026-04-20T16:48:18.339761" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:19.003333" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:19.003616" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${DEVICE_SERVER}</arg>
+<arg>install</arg>
+<arg>-r</arg>
+<arg>${apk_path}</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:18.337590" elapsed="0.666078"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:19.004674" level="INFO">Install stdout: Performing Streamed Install
+Success</msg>
+<arg>Install stdout: ${result.stdout}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:19.004010" elapsed="0.000688"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${result.stdout}</arg>
+<arg>Success</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="PASS" start="2026-04-20T16:48:19.004758" elapsed="0.000257"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:19.005130" level="INFO">Install successful on 1B221FDEE0033R</msg>
+<arg>Install successful on ${DEVICE_SERVER}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:19.005053" elapsed="0.000092"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:19.005241" level="INFO">Installing app on device 6dcede68...</msg>
+<arg>Installing app on device ${DEVICE_CLIENT}...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:19.005175" elapsed="0.000079"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:19.005518" level="INFO">Starting process:
+adb -s 6dcede68 install -r /Users/ymr/github/localnetwork/app/build/outputs/apk/debug/app-debug.apk</msg>
+<msg time="2026-04-20T16:48:19.007111" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:20.300517" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:20.300962" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${DEVICE_CLIENT}</arg>
+<arg>install</arg>
+<arg>-r</arg>
+<arg>${apk_path}</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:19.005289" elapsed="1.295696"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:20.301912" level="INFO">Install stdout: Performing Streamed Install
+Success</msg>
+<arg>Install stdout: ${result.stdout}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:20.301276" elapsed="0.000654"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${result.stdout}</arg>
+<arg>Success</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="PASS" start="2026-04-20T16:48:20.301993" elapsed="0.000232"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:20.302331" level="INFO">Install successful on 6dcede68</msg>
+<arg>Install successful on ${DEVICE_CLIENT}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:20.302258" elapsed="0.000087"/>
+</kw>
+<doc>Compile and install the debug APK on both devices</doc>
+<status status="PASS" start="2026-04-20T16:48:16.252633" elapsed="4.049772"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:20.302522" level="INFO">===== Install complete =====</msg>
+<arg>===== Install complete =====</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:20.302460" elapsed="0.000074"/>
+</kw>
+<kw name="Kill App On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:20.303090" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell am force-stop --user 0 com.example.lanchat</msg>
+<msg time="2026-04-20T16:48:20.305863" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:20.372217" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>am</arg>
+<arg>force-stop</arg>
+<arg>--user</arg>
+<arg>0</arg>
+<arg>${APP_PACKAGE}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:20.302811" elapsed="0.069574"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T16:48:21.374359" level="INFO">Slept 1 second.</msg>
+<arg>1s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T16:48:20.372695" elapsed="1.001900"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:21.375603" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell am kill com.example.lanchat</msg>
+<msg time="2026-04-20T16:48:21.379976" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:21.474814" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>am</arg>
+<arg>kill</arg>
+<arg>${APP_PACKAGE}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:21.374907" elapsed="0.099998"/>
+</kw>
+<arg>${DEVICE_SERVER}</arg>
+<status status="PASS" start="2026-04-20T16:48:20.302679" elapsed="1.172335"/>
+</kw>
+<kw name="Kill App On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:21.475822" level="INFO">Starting process:
+adb -s 6dcede68 shell am force-stop --user 0 com.example.lanchat</msg>
+<msg time="2026-04-20T16:48:21.477890" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:21.565741" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>am</arg>
+<arg>force-stop</arg>
+<arg>--user</arg>
+<arg>0</arg>
+<arg>${APP_PACKAGE}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:21.475503" elapsed="0.090495"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T16:48:22.569279" level="INFO">Slept 1 second.</msg>
+<arg>1s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T16:48:21.566348" elapsed="1.003061"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:22.570096" level="INFO">Starting process:
+adb -s 6dcede68 shell am kill com.example.lanchat</msg>
+<msg time="2026-04-20T16:48:22.573649" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:22.652973" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>am</arg>
+<arg>kill</arg>
+<arg>${APP_PACKAGE}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:22.569560" elapsed="0.083670"/>
+</kw>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T16:48:21.475251" elapsed="1.178228"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T16:48:23.654921" level="INFO">Slept 1 second.</msg>
+<arg>1s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T16:48:22.653772" elapsed="1.001306"/>
+</kw>
+<kw name="Stop App On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:23.656417" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell am force-stop com.example.lanchat</msg>
+<msg time="2026-04-20T16:48:23.660370" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:23.750758" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>am</arg>
+<arg>force-stop</arg>
+<arg>${APP_PACKAGE}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:23.655933" elapsed="0.095050"/>
+</kw>
+<arg>${DEVICE_SERVER}</arg>
+<status status="PASS" start="2026-04-20T16:48:23.655562" elapsed="0.095649"/>
+</kw>
+<kw name="Stop App On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:23.752493" level="INFO">Starting process:
+adb -s 6dcede68 shell am force-stop com.example.lanchat</msg>
+<msg time="2026-04-20T16:48:23.755391" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:23.845828" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>am</arg>
+<arg>force-stop</arg>
+<arg>${APP_PACKAGE}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:23.752010" elapsed="0.093964"/>
+</kw>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T16:48:23.751600" elapsed="0.094544"/>
+</kw>
+<kw name="Clear Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:23.847215" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell logcat -c</msg>
+<msg time="2026-04-20T16:48:23.850209" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:23.995100" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-c</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:23.846763" elapsed="0.148597"/>
+</kw>
+<arg>${DEVICE_SERVER}</arg>
+<status status="PASS" start="2026-04-20T16:48:23.846439" elapsed="0.149233"/>
+</kw>
+<kw name="Clear Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:23.997994" level="INFO">Starting process:
+adb -s 6dcede68 shell logcat -c</msg>
+<msg time="2026-04-20T16:48:24.001238" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:24.073366" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-c</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:23.996821" elapsed="0.076724"/>
+</kw>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T16:48:23.996275" elapsed="0.077418"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T16:48:25.074845" level="INFO">Slept 1 second.</msg>
+<arg>1s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T16:48:24.073896" elapsed="1.001138"/>
+</kw>
+<kw name="Launch App On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:25.076479" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell am start -n com.example.lanchat/.presentation.MainActivity</msg>
+<msg time="2026-04-20T16:48:25.081452" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:25.190339" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>am</arg>
+<arg>start</arg>
+<arg>-n</arg>
+<arg>${APP_PACKAGE}/.presentation.MainActivity</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:25.075844" elapsed="0.114716"/>
+</kw>
+<arg>${DEVICE_SERVER}</arg>
+<status status="PASS" start="2026-04-20T16:48:25.075410" elapsed="0.115367"/>
+</kw>
+<kw name="Launch App On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:25.192143" level="INFO">Starting process:
+adb -s 6dcede68 shell am start -n com.example.lanchat/.presentation.MainActivity</msg>
+<msg time="2026-04-20T16:48:25.196126" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:25.296496" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>am</arg>
+<arg>start</arg>
+<arg>-n</arg>
+<arg>${APP_PACKAGE}/.presentation.MainActivity</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:25.191574" elapsed="0.105068"/>
+</kw>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T16:48:25.191156" elapsed="0.105643"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T16:48:28.298732" level="INFO">Slept 3 seconds.</msg>
+<arg>3s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T16:48:25.296978" elapsed="3.002044"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:28.299654" level="INFO">Verifying apps started...</msg>
+<arg>Verifying apps started...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:28.299299" elapsed="0.000375"/>
+</kw>
+<kw name="Get Full Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:28.300495" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell logcat -d</msg>
+<msg time="2026-04-20T16:48:28.303460" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:28.377908" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:28.378135" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-d</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:28.300234" elapsed="0.077919"/>
+</kw>
+<return>
+<value>${result.stdout}</value>
+<status status="PASS" start="2026-04-20T16:48:28.378259" elapsed="0.000144"/>
+</return>
+<msg time="2026-04-20T16:48:28.378839" level="INFO">${server_log} = --------- beginning of main
+04-20 16:48:26.220  1374  4401 I bthal.activity: bt_power: LeAdvStat: 16:48:25:219 - 16:48:26:220, duration: 1001, le_adv_count: 1, total_le_adv_count: 1450725, total_event...</msg>
+<var>${server_log}</var>
+<arg>${DEVICE_SERVER}</arg>
+<status status="PASS" start="2026-04-20T16:48:28.299939" elapsed="0.078914"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${server_log}</arg>
+<arg>MainActivity</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="PASS" start="2026-04-20T16:48:28.379017" elapsed="0.000387"/>
+</kw>
+<kw name="Get Full Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:28.379816" level="INFO">Starting process:
+adb -s 6dcede68 shell logcat -d</msg>
+<msg time="2026-04-20T16:48:28.382151" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:28.458194" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:28.458376" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-d</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:28.379634" elapsed="0.078756"/>
+</kw>
+<return>
+<value>${result.stdout}</value>
+<status status="PASS" start="2026-04-20T16:48:28.458464" elapsed="0.000048"/>
+</return>
+<msg time="2026-04-20T16:48:28.458800" level="INFO">${client_log} = --------- beginning of main
+04-20 16:48:24.090  1375  1375 E SchedAssist: ofbSetSfMsgTrans pid(1375) failed with error=Permission denied
+04-20 16:48:24.124  1375  1375 E SchedAssist: ofbSetSfMsgTrans ...</msg>
+<var>${client_log}</var>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T16:48:28.379529" elapsed="0.079413"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${client_log}</arg>
+<arg>MainActivity</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="PASS" start="2026-04-20T16:48:28.459049" elapsed="0.000279"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:28.459431" level="INFO">Tapping Start Server on server device...</msg>
+<arg>Tapping Start Server on server device...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:28.459367" elapsed="0.000077"/>
+</kw>
+<kw name="Tap Element By Id">
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:28.459712" level="INFO">Looking for element by id: com.example.lanchat:id/start_stop_button</msg>
+<arg>Looking for element by id: ${resource_id}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:28.459639" elapsed="0.000085"/>
+</kw>
+<kw name="Get Element Bounds By Id">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:28.460079" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell uiautomator dump /sdcard/ui.xml</msg>
+<msg time="2026-04-20T16:48:28.461433" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:30.616387" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:30.616680" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>uiautomator</arg>
+<arg>dump</arg>
+<arg>/sdcard/ui.xml</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:28.459932" elapsed="2.156769"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:30.617403" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell cat /sdcard/ui.xml</msg>
+<msg time="2026-04-20T16:48:30.618682" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:30.673706" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:30.673874" level="INFO">${xml} = &lt;result object with rc 0&gt;</msg>
+<var>${xml}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>cat</arg>
+<arg>/sdcard/ui.xml</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:30.616924" elapsed="0.056965"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-04-20T16:48:30.674537" level="INFO">${output} = &lt;?xml version='1.0' encoding='UTF-8' standalone='yes' ?&gt;&lt;hierarchy rotation="0"&gt;&lt;node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="com.example.lanchat" content-desc="" ...</msg>
+<var>${output}</var>
+<arg>${xml.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-04-20T16:48:30.674058" elapsed="0.000490"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:30.675102" level="INFO">${match} = &lt;re.Match object; span=(6409, 6743), match='resource-id="com.example.lanchat:id/start_stop_bu&gt;</msg>
+<var>${match}</var>
+<arg>re.search(r'resource-id="${resource_id}"[^&gt;]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"', """${output}""")</arg>
+<arg>modules=re</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:30.674592" elapsed="0.000520"/>
+</kw>
+<if>
+<branch type="IF" condition="${match}">
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:30.675461" level="INFO">${x1} = 0</msg>
+<var>${x1}</var>
+<arg>${match.group(1)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:30.675250" elapsed="0.000219"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:30.675673" level="INFO">${y1} = 2868</msg>
+<var>${y1}</var>
+<arg>${match.group(2)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:30.675500" elapsed="0.000181"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:30.675869" level="INFO">${x2} = 1440</msg>
+<var>${x2}</var>
+<arg>${match.group(3)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:30.675709" elapsed="0.000167"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:30.676059" level="INFO">${y2} = 3036</msg>
+<var>${y2}</var>
+<arg>${match.group(4)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:30.675903" elapsed="0.000163"/>
+</kw>
+<return>
+<value>${x1}</value>
+<value>${y1}</value>
+<value>${x2}</value>
+<value>${y2}</value>
+<status status="PASS" start="2026-04-20T16:48:30.676086" elapsed="0.000026"/>
+</return>
+<status status="PASS" start="2026-04-20T16:48:30.675178" elapsed="0.000952"/>
+</branch>
+<branch type="ELSE">
+<kw name="Evaluate" owner="BuiltIn">
+<var>${match2}</var>
+<arg>re.search(r'bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"[^&gt;]*resource-id="${resource_id}"', """${output}""")</arg>
+<arg>modules=re</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:30.676174" elapsed="0.000006"/>
+</kw>
+<if>
+<branch type="IF" condition="${match2}">
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${x1}</var>
+<arg>${match2.group(1)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:30.676230" elapsed="0.000006"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${y1}</var>
+<arg>${match2.group(2)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:30.676258" elapsed="0.000005"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${x2}</var>
+<arg>${match2.group(3)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:30.676282" elapsed="0.000005"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${y2}</var>
+<arg>${match2.group(4)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:30.676306" elapsed="0.000004"/>
+</kw>
+<return>
+<value>${x1}</value>
+<value>${y1}</value>
+<value>${x2}</value>
+<value>${y2}</value>
+<status status="NOT RUN" start="2026-04-20T16:48:30.676319" elapsed="0.000004"/>
+</return>
+<status status="NOT RUN" start="2026-04-20T16:48:30.676207" elapsed="0.000125"/>
+</branch>
+<branch type="ELSE">
+<kw name="Fail" owner="BuiltIn">
+<arg>Element with resource-id ${resource_id} not found on device ${device_id}</arg>
+<doc>Fails the test with the given message and optionally alters its tags.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:30.676370" elapsed="0.000026"/>
+</kw>
+<status status="NOT RUN" start="2026-04-20T16:48:30.676339" elapsed="0.000083"/>
+</branch>
+<status status="NOT RUN" start="2026-04-20T16:48:30.676201" elapsed="0.000232"/>
+</if>
+<status status="NOT RUN" start="2026-04-20T16:48:30.676142" elapsed="0.000302"/>
+</branch>
+<status status="PASS" start="2026-04-20T16:48:30.675155" elapsed="0.001297"/>
+</if>
+<msg time="2026-04-20T16:48:30.676579" level="INFO">${x1} = 0</msg>
+<msg time="2026-04-20T16:48:30.676595" level="INFO">${y1} = 2868</msg>
+<msg time="2026-04-20T16:48:30.676606" level="INFO">${x2} = 1440</msg>
+<msg time="2026-04-20T16:48:30.676614" level="INFO">${y2} = 3036</msg>
+<var>${x1}</var>
+<var>${y1}</var>
+<var>${x2}</var>
+<var>${y2}</var>
+<arg>${device_id}</arg>
+<arg>${resource_id}</arg>
+<doc>Get bounds of element by resource-id using uiautomator</doc>
+<status status="PASS" start="2026-04-20T16:48:28.459854" elapsed="2.216768"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:30.676798" level="INFO">Element bounds: [0,2868][1440,3036]</msg>
+<arg>Element bounds: [${x1},${y1}][${x2},${y2}]</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:30.676672" elapsed="0.000195"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:30.677037" level="INFO">${cx} = 720</msg>
+<var>${cx}</var>
+<arg>(${x1} + ${x2}) // 2</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:30.676904" elapsed="0.000141"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:30.677175" level="INFO">${cy} = 2952</msg>
+<var>${cy}</var>
+<arg>(${y1} + ${y2}) // 2</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:30.677077" elapsed="0.000105"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:30.677285" level="INFO">Tapping at center: (720, 2952)</msg>
+<arg>Tapping at center: (${cx}, ${cy})</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:30.677213" elapsed="0.000085"/>
+</kw>
+<kw name="Tap Button On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:30.677692" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell input tap 720 2952</msg>
+<msg time="2026-04-20T16:48:30.679732" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:30.767695" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>input</arg>
+<arg>tap</arg>
+<arg>${x}</arg>
+<arg>${y}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:30.677492" elapsed="0.090290"/>
+</kw>
+<arg>${device_id}</arg>
+<arg>${cx}</arg>
+<arg>${cy}</arg>
+<status status="PASS" start="2026-04-20T16:48:30.677378" elapsed="0.090506"/>
+</kw>
+<arg>${DEVICE_SERVER}</arg>
+<arg>com.example.lanchat:id/start_stop_button</arg>
+<doc>Find element by resource-id and tap its center</doc>
+<status status="PASS" start="2026-04-20T16:48:28.459541" elapsed="2.308372"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T16:48:33.769625" level="INFO">Slept 3 seconds.</msg>
+<arg>3s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T16:48:30.768040" elapsed="3.001842"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:33.770631" level="INFO">Checking server broadcasts...</msg>
+<arg>Checking server broadcasts...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:33.770174" elapsed="0.000500"/>
+</kw>
+<kw name="Get Full Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:33.771905" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell logcat -d</msg>
+<msg time="2026-04-20T16:48:33.775612" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:33.844551" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:33.844822" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-d</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:33.771453" elapsed="0.073391"/>
+</kw>
+<return>
+<value>${result.stdout}</value>
+<status status="PASS" start="2026-04-20T16:48:33.844962" elapsed="0.000069"/>
+</return>
+<msg time="2026-04-20T16:48:33.845612" level="INFO">${server_log} = --------- beginning of main
+04-20 16:48:26.220  1374  4401 I bthal.activity: bt_power: LeAdvStat: 16:48:25:219 - 16:48:26:220, duration: 1001, le_adv_count: 1, total_le_adv_count: 1450725, total_event...</msg>
+<var>${server_log}</var>
+<arg>${DEVICE_SERVER}</arg>
+<status status="PASS" start="2026-04-20T16:48:33.771085" elapsed="0.074545"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${server_log}</arg>
+<arg>LANCHAT_DISCOVER</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="PASS" start="2026-04-20T16:48:33.845830" elapsed="0.000467"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:33.846497" level="INFO">Tapping CLIENT tab on client device...</msg>
+<arg>Tapping CLIENT tab on client device...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:33.846374" elapsed="0.000148"/>
+</kw>
+<kw name="Tap Element By Content Desc">
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:33.846991" level="INFO">Looking for element by content-desc: Client</msg>
+<arg>Looking for element by content-desc: ${content_desc}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:33.846863" elapsed="0.000151"/>
+</kw>
+<kw name="Get Element Bounds By Content Desc">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:33.847681" level="INFO">Starting process:
+adb -s 6dcede68 shell uiautomator dump /sdcard/ui.xml</msg>
+<msg time="2026-04-20T16:48:33.849778" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:36.132447" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:36.133104" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>uiautomator</arg>
+<arg>dump</arg>
+<arg>/sdcard/ui.xml</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:33.847372" elapsed="2.285778"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:36.134407" level="INFO">Starting process:
+adb -s 6dcede68 shell cat /sdcard/ui.xml</msg>
+<msg time="2026-04-20T16:48:36.136603" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:36.216096" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:36.216409" level="INFO">${xml} = &lt;result object with rc 0&gt;</msg>
+<var>${xml}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>cat</arg>
+<arg>/sdcard/ui.xml</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:36.133600" elapsed="0.082834"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-04-20T16:48:36.217495" level="INFO">${output} = &lt;?xml version='1.0' encoding='UTF-8' standalone='yes' ?&gt;&lt;hierarchy rotation="0"&gt;&lt;node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="com.example.lanchat" content-desc="" ...</msg>
+<var>${output}</var>
+<arg>${xml.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-04-20T16:48:36.216685" elapsed="0.000831"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:36.218117" level="INFO">${match} = &lt;re.Match object; span=(3544, 3769), match='content-desc="Client" checkable="false" checked="&gt;</msg>
+<var>${match}</var>
+<arg>re.search(r'content-desc="${content_desc}"[^&gt;]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"', """${output}""")</arg>
+<arg>modules=re</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:36.217593" elapsed="0.000541"/>
+</kw>
+<if>
+<branch type="IF" condition="${match}">
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:36.218604" level="INFO">${x1} = 540</msg>
+<var>${x1}</var>
+<arg>${match.group(1)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:36.218290" elapsed="0.000327"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:36.218915" level="INFO">${y1} = 107</msg>
+<var>${y1}</var>
+<arg>${match.group(2)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:36.218663" elapsed="0.000264"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:36.219305" level="INFO">${x2} = 1080</msg>
+<var>${x2}</var>
+<arg>${match.group(3)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:36.219056" elapsed="0.000261"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:36.219667" level="INFO">${y2} = 251</msg>
+<var>${y2}</var>
+<arg>${match.group(4)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:36.219361" elapsed="0.000318"/>
+</kw>
+<return>
+<value>${x1}</value>
+<value>${y1}</value>
+<value>${x2}</value>
+<value>${y2}</value>
+<status status="PASS" start="2026-04-20T16:48:36.219714" elapsed="0.000039"/>
+</return>
+<status status="PASS" start="2026-04-20T16:48:36.218202" elapsed="0.001579"/>
+</branch>
+<branch type="ELSE">
+<kw name="Evaluate" owner="BuiltIn">
+<var>${match2}</var>
+<arg>re.search(r'bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"[^&gt;]*content-desc="${content_desc}"', """${output}""")</arg>
+<arg>modules=re</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:36.219839" elapsed="0.000009"/>
+</kw>
+<if>
+<branch type="IF" condition="${match2}">
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${x1}</var>
+<arg>${match2.group(1)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:36.219918" elapsed="0.000007"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${y1}</var>
+<arg>${match2.group(2)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:36.219958" elapsed="0.000007"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${x2}</var>
+<arg>${match2.group(3)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:36.219995" elapsed="0.000006"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${y2}</var>
+<arg>${match2.group(4)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:36.220029" elapsed="0.000006"/>
+</kw>
+<return>
+<value>${x1}</value>
+<value>${y1}</value>
+<value>${x2}</value>
+<value>${y2}</value>
+<status status="NOT RUN" start="2026-04-20T16:48:36.220050" elapsed="0.000006"/>
+</return>
+<status status="NOT RUN" start="2026-04-20T16:48:36.219882" elapsed="0.000187"/>
+</branch>
+<branch type="ELSE">
+<kw name="Fail" owner="BuiltIn">
+<arg>Element with content-desc ${content_desc} not found on device ${device_id}</arg>
+<doc>Fails the test with the given message and optionally alters its tags.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:36.220116" elapsed="0.000007"/>
+</kw>
+<status status="NOT RUN" start="2026-04-20T16:48:36.220078" elapsed="0.000060"/>
+</branch>
+<status status="NOT RUN" start="2026-04-20T16:48:36.219874" elapsed="0.000273"/>
+</if>
+<status status="NOT RUN" start="2026-04-20T16:48:36.219794" elapsed="0.000363"/>
+</branch>
+<status status="PASS" start="2026-04-20T16:48:36.218180" elapsed="0.001985"/>
+</if>
+<msg time="2026-04-20T16:48:36.220292" level="INFO">${x1} = 540</msg>
+<msg time="2026-04-20T16:48:36.220310" level="INFO">${y1} = 107</msg>
+<msg time="2026-04-20T16:48:36.220325" level="INFO">${x2} = 1080</msg>
+<msg time="2026-04-20T16:48:36.220337" level="INFO">${y2} = 251</msg>
+<var>${x1}</var>
+<var>${y1}</var>
+<var>${x2}</var>
+<var>${y2}</var>
+<arg>${device_id}</arg>
+<arg>${content_desc}</arg>
+<doc>Get bounds of element by content-desc using uiautomator</doc>
+<status status="PASS" start="2026-04-20T16:48:33.847219" elapsed="2.373128"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:36.220543" level="INFO">Element bounds: [540,107][1080,251]</msg>
+<arg>Element bounds: [${x1},${y1}][${x2},${y2}]</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:36.220407" elapsed="0.000157"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:36.220752" level="INFO">${cx} = 810</msg>
+<var>${cx}</var>
+<arg>(${x1} + ${x2}) // 2</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:36.220605" elapsed="0.000158"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:36.220938" level="INFO">${cy} = 179</msg>
+<var>${cy}</var>
+<arg>(${y1} + ${y2}) // 2</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:36.220805" elapsed="0.000145"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:36.221095" level="INFO">Tapping at center: (810, 179)</msg>
+<arg>Tapping at center: (${cx}, ${cy})</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:36.220990" elapsed="0.000123"/>
+</kw>
+<kw name="Tap Button On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:36.221731" level="INFO">Starting process:
+adb -s 6dcede68 shell input tap 810 179</msg>
+<msg time="2026-04-20T16:48:36.224722" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:36.353887" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>input</arg>
+<arg>tap</arg>
+<arg>${x}</arg>
+<arg>${y}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:36.221416" elapsed="0.132655"/>
+</kw>
+<arg>${device_id}</arg>
+<arg>${cx}</arg>
+<arg>${cy}</arg>
+<status status="PASS" start="2026-04-20T16:48:36.221248" elapsed="0.132997"/>
+</kw>
+<arg>${DEVICE_CLIENT}</arg>
+<arg>Client</arg>
+<doc>Find element by content-desc and tap its center</doc>
+<status status="PASS" start="2026-04-20T16:48:33.846685" elapsed="2.507605"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T16:48:37.355650" level="INFO">Slept 1 second.</msg>
+<arg>1s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T16:48:36.354538" elapsed="1.001328"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:37.356728" level="INFO">Tapping Start Discovery on client device...</msg>
+<arg>Tapping Start Discovery on client device...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:37.356227" elapsed="0.000550"/>
+</kw>
+<kw name="Tap Element By Id">
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:37.357644" level="INFO">Looking for element by id: com.example.lanchat:id/start_stop_button</msg>
+<arg>Looking for element by id: ${resource_id}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:37.357433" elapsed="0.000245"/>
+</kw>
+<kw name="Get Element Bounds By Id">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:37.359450" level="INFO">Starting process:
+adb -s 6dcede68 shell uiautomator dump /sdcard/ui.xml</msg>
+<msg time="2026-04-20T16:48:37.362963" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:39.590385" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:39.592235" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>uiautomator</arg>
+<arg>dump</arg>
+<arg>/sdcard/ui.xml</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:37.358993" elapsed="2.233312"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:39.594365" level="INFO">Starting process:
+adb -s 6dcede68 shell cat /sdcard/ui.xml</msg>
+<msg time="2026-04-20T16:48:39.596947" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:39.666887" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:39.667269" level="INFO">${xml} = &lt;result object with rc 0&gt;</msg>
+<var>${xml}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>cat</arg>
+<arg>/sdcard/ui.xml</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.593088" elapsed="0.074212"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-04-20T16:48:39.668433" level="INFO">${output} = &lt;?xml version='1.0' encoding='UTF-8' standalone='yes' ?&gt;&lt;hierarchy rotation="0"&gt;&lt;node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="com.example.lanchat" content-desc="" ...</msg>
+<var>${output}</var>
+<arg>${xml.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.667674" elapsed="0.000774"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:39.668883" level="INFO">${match} = &lt;re.Match object; span=(6319, 6653), match='resource-id="com.example.lanchat:id/start_stop_bu&gt;</msg>
+<var>${match}</var>
+<arg>re.search(r'resource-id="${resource_id}"[^&gt;]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"', """${output}""")</arg>
+<arg>modules=re</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.668512" elapsed="0.000384"/>
+</kw>
+<if>
+<branch type="IF" condition="${match}">
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:39.669426" level="INFO">${x1} = 0</msg>
+<var>${x1}</var>
+<arg>${match.group(1)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.669140" elapsed="0.000301"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:39.669712" level="INFO">${y1} = 2208</msg>
+<var>${y1}</var>
+<arg>${match.group(2)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.669485" elapsed="0.000238"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:39.669978" level="INFO">${x2} = 1080</msg>
+<var>${x2}</var>
+<arg>${match.group(3)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.669761" elapsed="0.000227"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:39.670238" level="INFO">${y2} = 2245</msg>
+<var>${y2}</var>
+<arg>${match.group(4)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.670025" elapsed="0.000223"/>
+</kw>
+<return>
+<value>${x1}</value>
+<value>${y1}</value>
+<value>${x2}</value>
+<value>${y2}</value>
+<status status="PASS" start="2026-04-20T16:48:39.670285" elapsed="0.000054"/>
+</return>
+<status status="PASS" start="2026-04-20T16:48:39.669010" elapsed="0.001358"/>
+</branch>
+<branch type="ELSE">
+<kw name="Evaluate" owner="BuiltIn">
+<var>${match2}</var>
+<arg>re.search(r'bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"[^&gt;]*resource-id="${resource_id}"', """${output}""")</arg>
+<arg>modules=re</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:39.670420" elapsed="0.000007"/>
+</kw>
+<if>
+<branch type="IF" condition="${match2}">
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${x1}</var>
+<arg>${match2.group(1)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:39.670490" elapsed="0.000007"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${y1}</var>
+<arg>${match2.group(2)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:39.670526" elapsed="0.000005"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${x2}</var>
+<arg>${match2.group(3)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:39.670556" elapsed="0.000005"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${y2}</var>
+<arg>${match2.group(4)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:39.670587" elapsed="0.000005"/>
+</kw>
+<return>
+<value>${x1}</value>
+<value>${y1}</value>
+<value>${x2}</value>
+<value>${y2}</value>
+<status status="NOT RUN" start="2026-04-20T16:48:39.670604" elapsed="0.000005"/>
+</return>
+<status status="NOT RUN" start="2026-04-20T16:48:39.670460" elapsed="0.000161"/>
+</branch>
+<branch type="ELSE">
+<kw name="Fail" owner="BuiltIn">
+<arg>Element with resource-id ${resource_id} not found on device ${device_id}</arg>
+<doc>Fails the test with the given message and optionally alters its tags.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:39.670666" elapsed="0.000006"/>
+</kw>
+<status status="NOT RUN" start="2026-04-20T16:48:39.670630" elapsed="0.000052"/>
+</branch>
+<status status="NOT RUN" start="2026-04-20T16:48:39.670453" elapsed="0.000236"/>
+</if>
+<status status="NOT RUN" start="2026-04-20T16:48:39.670381" elapsed="0.000317"/>
+</branch>
+<status status="PASS" start="2026-04-20T16:48:39.668976" elapsed="0.001729"/>
+</if>
+<msg time="2026-04-20T16:48:39.670837" level="INFO">${x1} = 0</msg>
+<msg time="2026-04-20T16:48:39.670852" level="INFO">${y1} = 2208</msg>
+<msg time="2026-04-20T16:48:39.670864" level="INFO">${x2} = 1080</msg>
+<msg time="2026-04-20T16:48:39.670875" level="INFO">${y2} = 2245</msg>
+<var>${x1}</var>
+<var>${y1}</var>
+<var>${x2}</var>
+<var>${y2}</var>
+<arg>${device_id}</arg>
+<arg>${resource_id}</arg>
+<doc>Get bounds of element by resource-id using uiautomator</doc>
+<status status="PASS" start="2026-04-20T16:48:37.358741" elapsed="2.312143"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:39.671060" level="INFO">Element bounds: [0,2208][1080,2245]</msg>
+<arg>Element bounds: [${x1},${y1}][${x2},${y2}]</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.670940" elapsed="0.000137"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:39.671245" level="INFO">${cx} = 540</msg>
+<var>${cx}</var>
+<arg>(${x1} + ${x2}) // 2</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.671114" elapsed="0.000140"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:39.671410" level="INFO">${cy} = 2226</msg>
+<var>${cy}</var>
+<arg>(${y1} + ${y2}) // 2</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.671291" elapsed="0.000128"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:39.671552" level="INFO">Tapping at center: (540, 2226)</msg>
+<arg>Tapping at center: (${cx}, ${cy})</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.671455" elapsed="0.000113"/>
+</kw>
+<kw name="Tap Button On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:39.672143" level="INFO">Starting process:
+adb -s 6dcede68 shell input tap 540 2226</msg>
+<msg time="2026-04-20T16:48:39.674788" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:39.803672" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>input</arg>
+<arg>tap</arg>
+<arg>${x}</arg>
+<arg>${y}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.671883" elapsed="0.131934"/>
+</kw>
+<arg>${device_id}</arg>
+<arg>${cx}</arg>
+<arg>${cy}</arg>
+<status status="PASS" start="2026-04-20T16:48:39.671728" elapsed="0.132235"/>
+</kw>
+<arg>${DEVICE_CLIENT}</arg>
+<arg>com.example.lanchat:id/start_stop_button</arg>
+<doc>Find element by resource-id and tap its center</doc>
+<status status="PASS" start="2026-04-20T16:48:37.357023" elapsed="2.446977"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:39.804554" level="INFO">Waiting for UDP discovery...</msg>
+<arg>Waiting for UDP discovery...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.804208" elapsed="0.000370"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-04-20T16:48:39.804909" level="INFO">${discovery_success} = False</msg>
+<var>${discovery_success}</var>
+<arg>${False}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.804713" elapsed="0.000209"/>
+</kw>
+<for flavor="IN RANGE">
+<iter>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T16:48:40.806585" level="INFO">Slept 1 second.</msg>
+<arg>1s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T16:48:39.805290" elapsed="1.001440"/>
+</kw>
+<kw name="Get Full Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:40.810629" level="INFO">Starting process:
+adb -s 6dcede68 shell logcat -d</msg>
+<msg time="2026-04-20T16:48:40.814411" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:40.897362" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:40.897631" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-d</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:40.809526" elapsed="0.088126"/>
+</kw>
+<return>
+<value>${result.stdout}</value>
+<status status="PASS" start="2026-04-20T16:48:40.897764" elapsed="0.000063"/>
+</return>
+<msg time="2026-04-20T16:48:40.898408" level="INFO">${client_log} = --------- beginning of main
+04-20 16:48:24.090  1375  1375 E SchedAssist: ofbSetSfMsgTrans pid(1375) failed with error=Permission denied
+04-20 16:48:24.124  1375  1375 E SchedAssist: ofbSetSfMsgTrans ...</msg>
+<var>${client_log}</var>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T16:48:40.807592" elapsed="0.090833"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:40.900986" level="INFO">${discovery_success} = False</msg>
+<var>${discovery_success}</var>
+<arg>"Discovered peer:" in """${client_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:40.898570" elapsed="0.002439"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:40.901251" level="INFO">Discovery attempt 1/15: False</msg>
+<arg>Discovery attempt ${i}/15: ${discovery_success}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:40.901088" elapsed="0.000181"/>
+</kw>
+<kw name="Exit For Loop If" owner="BuiltIn">
+<arg>${discovery_success}</arg>
+<doc>Stops executing the enclosing FOR loop if the ``condition`` is true.</doc>
+<status status="PASS" start="2026-04-20T16:48:40.901312" elapsed="0.000116"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:40.901552" level="INFO">Waiting for peer discovery...</msg>
+<arg>Waiting for peer discovery...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:40.901473" elapsed="0.000097"/>
+</kw>
+<var name="${i}">1</var>
+<status status="PASS" start="2026-04-20T16:48:39.805243" elapsed="1.096345"/>
+</iter>
+<iter>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T16:48:41.902460" level="INFO">Slept 1 second.</msg>
+<arg>1s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T16:48:40.901734" elapsed="1.000852"/>
+</kw>
+<kw name="Get Full Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:41.903905" level="INFO">Starting process:
+adb -s 6dcede68 shell logcat -d</msg>
+<msg time="2026-04-20T16:48:41.911510" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:41.981253" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:41.981489" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-d</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:41.903296" elapsed="0.078212"/>
+</kw>
+<return>
+<value>${result.stdout}</value>
+<status status="PASS" start="2026-04-20T16:48:41.981605" elapsed="0.000051"/>
+</return>
+<msg time="2026-04-20T16:48:41.982205" level="INFO">${client_log} = --------- beginning of main
+04-20 16:48:24.090  1375  1375 E SchedAssist: ofbSetSfMsgTrans pid(1375) failed with error=Permission denied
+04-20 16:48:24.124  1375  1375 E SchedAssist: ofbSetSfMsgTrans ...</msg>
+<var>${client_log}</var>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T16:48:41.902937" elapsed="0.079285"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:41.985258" level="INFO">${discovery_success} = True</msg>
+<var>${discovery_success}</var>
+<arg>"Discovered peer:" in """${client_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:41.982365" elapsed="0.002914"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:41.985520" level="INFO">Discovery attempt 2/15: True</msg>
+<arg>Discovery attempt ${i}/15: ${discovery_success}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:41.985355" elapsed="0.000191"/>
+</kw>
+<kw name="Exit For Loop If" owner="BuiltIn">
+<msg time="2026-04-20T16:48:41.985705" level="INFO">Exiting for loop altogether.</msg>
+<arg>${discovery_success}</arg>
+<doc>Stops executing the enclosing FOR loop if the ``condition`` is true.</doc>
+<status status="PASS" start="2026-04-20T16:48:41.985590" elapsed="0.000164"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<arg>Waiting for peer discovery...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:41.985793" elapsed="0.000007"/>
+</kw>
+<var name="${i}">2</var>
+<status status="PASS" start="2026-04-20T16:48:40.901694" elapsed="1.084121"/>
+</iter>
+<var>${i}</var>
+<value>1</value>
+<value>16</value>
+<status status="PASS" start="2026-04-20T16:48:39.805011" elapsed="2.180833"/>
+</for>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:41.985959" level="INFO">Checking if client discovered server...</msg>
+<arg>Checking if client discovered server...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:41.985891" elapsed="0.000083"/>
+</kw>
+<kw name="Check UI For Text On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:41.986488" level="INFO">Starting process:
+adb -s 6dcede68 shell uiautomator dump /sdcard/ui.xml</msg>
+<msg time="2026-04-20T16:48:41.988836" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:44.213146" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:44.213928" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>uiautomator</arg>
+<arg>dump</arg>
+<arg>/sdcard/ui.xml</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:41.986220" elapsed="2.227744"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:44.215914" level="INFO">Starting process:
+adb -s 6dcede68 shell cat /sdcard/ui.xml</msg>
+<msg time="2026-04-20T16:48:44.219759" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:44.293276" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:44.293529" level="INFO">${xml} = &lt;result object with rc 0&gt;</msg>
+<var>${xml}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>cat</arg>
+<arg>/sdcard/ui.xml</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:44.214562" elapsed="0.078986"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:44.294699" level="INFO">${found} = True</msg>
+<var>${found}</var>
+<arg>"""${text}""" in """${xml.stdout}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:44.293893" elapsed="0.000820"/>
+</kw>
+<return>
+<value>${found}</value>
+<status status="PASS" start="2026-04-20T16:48:44.294753" elapsed="0.000065"/>
+</return>
+<msg time="2026-04-20T16:48:44.294926" level="INFO">${ui_check} = True</msg>
+<var>${ui_check}</var>
+<arg>${DEVICE_CLIENT}</arg>
+<arg>Pixel 6 Pro</arg>
+<status status="PASS" start="2026-04-20T16:48:41.986092" elapsed="2.308846"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:44.295142" level="INFO">Peer visible in UI: True</msg>
+<arg>Peer visible in UI: ${ui_check}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:44.295014" elapsed="0.000147"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${discovery_success} or ${ui_check}</arg>
+<arg>Discovery failed - neither logs nor UI show peer</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-04-20T16:48:44.295214" elapsed="0.000164"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:44.295500" level="INFO">===== DISCOVERY SUCCESSFUL =====</msg>
+<arg>===== DISCOVERY SUCCESSFUL =====</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:44.295420" elapsed="0.000096"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:44.295623" level="INFO">===== Starting TCP Connection Phase =====</msg>
+<arg>===== Starting TCP Connection Phase =====</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:44.295554" elapsed="0.000085"/>
+</kw>
+<kw name="Clear Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:44.296146" level="INFO">Starting process:
+adb -s 6dcede68 shell logcat -c</msg>
+<msg time="2026-04-20T16:48:44.298774" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:44.347216" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-c</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:44.295916" elapsed="0.051431"/>
+</kw>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T16:48:44.295772" elapsed="0.051711"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:44.348009" level="INFO">Tapping on peer item in list...</msg>
+<arg>Tapping on peer item in list...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:44.347672" elapsed="0.000355"/>
+</kw>
+<kw name="Tap Element By Text">
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:44.348431" level="INFO">Looking for element by text: Pixel 6 Pro</msg>
+<arg>Looking for element by text: ${text}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:44.348337" elapsed="0.000110"/>
+</kw>
+<kw name="Get Element Bounds By Text">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:44.349499" level="INFO">Starting process:
+adb -s 6dcede68 shell uiautomator dump /sdcard/ui.xml</msg>
+<msg time="2026-04-20T16:48:44.351206" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:46.587424" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:46.587780" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>uiautomator</arg>
+<arg>dump</arg>
+<arg>/sdcard/ui.xml</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:44.349191" elapsed="2.238620"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:46.588903" level="INFO">Starting process:
+adb -s 6dcede68 shell cat /sdcard/ui.xml</msg>
+<msg time="2026-04-20T16:48:46.592211" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:46.660934" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:46.661170" level="INFO">${xml} = &lt;result object with rc 0&gt;</msg>
+<var>${xml}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>cat</arg>
+<arg>/sdcard/ui.xml</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:46.588112" elapsed="0.073079"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-04-20T16:48:46.662055" level="INFO">${output} = &lt;?xml version='1.0' encoding='UTF-8' standalone='yes' ?&gt;&lt;hierarchy rotation="0"&gt;&lt;node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="com.example.lanchat" content-desc="" ...</msg>
+<var>${output}</var>
+<arg>${xml.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-04-20T16:48:46.661413" elapsed="0.000657"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:46.662701" level="INFO">${match} = &lt;re.Match object; span=(5547, 5879), match='text="Pixel 6 Pro" resource-id="android:id/text1"&gt;</msg>
+<var>${match}</var>
+<arg>re.search(r'text="${text}"[^&gt;]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"', """${output}""")</arg>
+<arg>modules=re</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:46.662136" elapsed="0.000578"/>
+</kw>
+<if>
+<branch type="IF" condition="${match}">
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:46.663136" level="INFO">${x1} = 48</msg>
+<var>${x1}</var>
+<arg>${match.group(1)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:46.662851" elapsed="0.000296"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:46.663429" level="INFO">${y1} = 532</msg>
+<var>${y1}</var>
+<arg>${match.group(2)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:46.663187" elapsed="0.000253"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:46.663707" level="INFO">${x2} = 1032</msg>
+<var>${x2}</var>
+<arg>${match.group(3)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:46.663478" elapsed="0.000239"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-04-20T16:48:46.663971" level="INFO">${y2} = 597</msg>
+<var>${y2}</var>
+<arg>${match.group(4)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-04-20T16:48:46.663756" elapsed="0.000225"/>
+</kw>
+<return>
+<value>${x1}</value>
+<value>${y1}</value>
+<value>${x2}</value>
+<value>${y2}</value>
+<status status="PASS" start="2026-04-20T16:48:46.664009" elapsed="0.000034"/>
+</return>
+<status status="PASS" start="2026-04-20T16:48:46.662778" elapsed="0.001292"/>
+</branch>
+<branch type="ELSE">
+<kw name="Evaluate" owner="BuiltIn">
+<var>${match2}</var>
+<arg>re.search(r'bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"[^&gt;]*text="${text}"', """${output}""")</arg>
+<arg>modules=re</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:46.664122" elapsed="0.000008"/>
+</kw>
+<if>
+<branch type="IF" condition="${match2}">
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${x1}</var>
+<arg>${match2.group(1)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:46.664193" elapsed="0.000007"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${y1}</var>
+<arg>${match2.group(2)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:46.664228" elapsed="0.000006"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${x2}</var>
+<arg>${match2.group(3)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:46.664439" elapsed="0.000007"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<var>${y2}</var>
+<arg>${match2.group(4)}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:46.664474" elapsed="0.000006"/>
+</kw>
+<return>
+<value>${x1}</value>
+<value>${y1}</value>
+<value>${x2}</value>
+<value>${y2}</value>
+<status status="NOT RUN" start="2026-04-20T16:48:46.664493" elapsed="0.000006"/>
+</return>
+<status status="NOT RUN" start="2026-04-20T16:48:46.664162" elapsed="0.000353"/>
+</branch>
+<branch type="ELSE">
+<kw name="Fail" owner="BuiltIn">
+<arg>Element with text ${text} not found on device ${device_id}</arg>
+<doc>Fails the test with the given message and optionally alters its tags.</doc>
+<status status="NOT RUN" start="2026-04-20T16:48:46.664560" elapsed="0.000006"/>
+</kw>
+<status status="NOT RUN" start="2026-04-20T16:48:46.664523" elapsed="0.000057"/>
+</branch>
+<status status="NOT RUN" start="2026-04-20T16:48:46.664155" elapsed="0.000433"/>
+</if>
+<status status="NOT RUN" start="2026-04-20T16:48:46.664083" elapsed="0.000514"/>
+</branch>
+<status status="PASS" start="2026-04-20T16:48:46.662759" elapsed="0.001845"/>
+</if>
+<msg time="2026-04-20T16:48:46.664717" level="INFO">${x1} = 48</msg>
+<msg time="2026-04-20T16:48:46.664734" level="INFO">${y1} = 532</msg>
+<msg time="2026-04-20T16:48:46.664746" level="INFO">${x2} = 1032</msg>
+<msg time="2026-04-20T16:48:46.664757" level="INFO">${y2} = 597</msg>
+<var>${x1}</var>
+<var>${y1}</var>
+<var>${x2}</var>
+<var>${y2}</var>
+<arg>${device_id}</arg>
+<arg>${text}</arg>
+<doc>Get bounds of element by text using uiautomator</doc>
+<status status="PASS" start="2026-04-20T16:48:44.348912" elapsed="2.315855"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:46.664980" level="INFO">Element bounds: [48,532][1032,597]</msg>
+<arg>Element bounds: [${x1},${y1}][${x2},${y2}]</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:46.664819" elapsed="0.000202"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:46.665339" level="INFO">${cx} = 540</msg>
+<var>${cx}</var>
+<arg>(${x1} + ${x2}) // 2</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:46.665089" elapsed="0.000264"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:46.665546" level="INFO">${cy} = 564</msg>
+<var>${cy}</var>
+<arg>(${y1} + ${y2}) // 2</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:46.665403" elapsed="0.000154"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:46.665701" level="INFO">Tapping at center: (540, 564)</msg>
+<arg>Tapping at center: (${cx}, ${cy})</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:46.665600" elapsed="0.000119"/>
+</kw>
+<kw name="Tap Button On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:46.666572" level="INFO">Starting process:
+adb -s 6dcede68 shell input tap 540 564</msg>
+<msg time="2026-04-20T16:48:46.669394" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:46.759459" level="INFO">Process completed.</msg>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>input</arg>
+<arg>tap</arg>
+<arg>${x}</arg>
+<arg>${y}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:46.666007" elapsed="0.093630"/>
+</kw>
+<arg>${device_id}</arg>
+<arg>${cx}</arg>
+<arg>${cy}</arg>
+<status status="PASS" start="2026-04-20T16:48:46.665837" elapsed="0.093965"/>
+</kw>
+<arg>${DEVICE_CLIENT}</arg>
+<arg>Pixel 6 Pro</arg>
+<doc>Find element by text and tap its center</doc>
+<status status="PASS" start="2026-04-20T16:48:44.348149" elapsed="2.411689"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.761730" level="INFO">Slept 5 seconds.</msg>
+<arg>5s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-04-20T16:48:46.760063" elapsed="5.001879"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.762595" level="INFO">Checking TCP connection logs on client...</msg>
+<arg>Checking TCP connection logs on client...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.762249" elapsed="0.000380"/>
+</kw>
+<kw name="Get Full Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:51.763642" level="INFO">Starting process:
+adb -s 6dcede68 shell logcat -d</msg>
+<msg time="2026-04-20T16:48:51.766376" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:51.840919" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:51.841178" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-d</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.763231" elapsed="0.077970"/>
+</kw>
+<return>
+<value>${result.stdout}</value>
+<status status="PASS" start="2026-04-20T16:48:51.841309" elapsed="0.000061"/>
+</return>
+<msg time="2026-04-20T16:48:51.841894" level="INFO">${client_log} = --------- beginning of main
+04-20 16:48:44.371  1375  1375 E SchedAssist: ofbSetSfMsgTrans pid(1375) failed with error=Permission denied
+04-20 16:48:44.388  1375  1375 E SchedAssist: ofbSetSfMsgTrans ...</msg>
+<var>${client_log}</var>
+<arg>${DEVICE_CLIENT}</arg>
+<status status="PASS" start="2026-04-20T16:48:51.762885" elapsed="0.079028"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.843780" level="INFO">${client_connected} = True</msg>
+<var>${client_connected}</var>
+<arg>"Connected to server" in """${client_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.842071" elapsed="0.001722"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.844711" level="INFO">${client_session_started} = True</msg>
+<var>${client_session_started}</var>
+<arg>"&gt;&gt;&gt; HANDLE_CLIENT_SESSION_START" in """${client_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.843853" elapsed="0.000870"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.846179" level="INFO">${client_session_ready} = True</msg>
+<var>${client_session_ready}</var>
+<arg>"&gt;&gt;&gt; CLIENT_SESSION_READY" in """${client_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.844770" elapsed="0.001438"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.847287" level="INFO">${client_sent_auth} = True</msg>
+<var>${client_sent_auth}</var>
+<arg>"&gt;&gt;&gt; CLIENT_SENT_AUTH_REQUEST" in """${client_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.846321" elapsed="0.000978"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.848170" level="INFO">${client_received_auth_response} = True</msg>
+<var>${client_received_auth_response}</var>
+<arg>"&gt;&gt;&gt; CLIENT_RECEIVED_AUTH_RESPONSE" in """${client_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.847349" elapsed="0.000833"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.849005" level="INFO">${client_auth_success} = True</msg>
+<var>${client_auth_success}</var>
+<arg>"&gt;&gt;&gt; CLIENT_AUTH_SUCCESS" in """${client_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.848224" elapsed="0.000866"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.849236" level="INFO">Checking TCP connection logs on server...</msg>
+<arg>Checking TCP connection logs on server...</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.849141" elapsed="0.000113"/>
+</kw>
+<kw name="Get Full Logcat On Device">
+<kw name="Run Process" owner="Process">
+<msg time="2026-04-20T16:48:51.849806" level="INFO">Starting process:
+adb -s 1B221FDEE0033R shell logcat -d</msg>
+<msg time="2026-04-20T16:48:51.851808" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-04-20T16:48:51.947351" level="INFO">Process completed.</msg>
+<msg time="2026-04-20T16:48:51.947616" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>adb</arg>
+<arg>-s</arg>
+<arg>${device_id}</arg>
+<arg>shell</arg>
+<arg>logcat</arg>
+<arg>-d</arg>
+<arg>shell=True</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.849522" elapsed="0.098119"/>
+</kw>
+<return>
+<value>${result.stdout}</value>
+<status status="PASS" start="2026-04-20T16:48:51.947757" elapsed="0.000058"/>
+</return>
+<msg time="2026-04-20T16:48:51.948385" level="INFO">${server_log} = --------- beginning of main
+04-20 16:48:26.220  1374  4401 I bthal.activity: bt_power: LeAdvStat: 16:48:25:219 - 16:48:26:220, duration: 1001, le_adv_count: 1, total_le_adv_count: 1450725, total_event...</msg>
+<var>${server_log}</var>
+<arg>${DEVICE_SERVER}</arg>
+<status status="PASS" start="2026-04-20T16:48:51.849384" elapsed="0.099019"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.950817" level="INFO">${server_got_connection} = True</msg>
+<var>${server_got_connection}</var>
+<arg>"Client connected to server" in """${server_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.948583" elapsed="0.002248"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.952737" level="INFO">${server_session_started} = True</msg>
+<var>${server_session_started}</var>
+<arg>"&gt;&gt;&gt; HANDLE_SERVER_SESSION_START" in """${server_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.950895" elapsed="0.001855"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.955062" level="INFO">${server_session_ready} = True</msg>
+<var>${server_session_ready}</var>
+<arg>"&gt;&gt;&gt; SERVER_SESSION_READY" in """${server_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.952798" elapsed="0.002285"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.957003" level="INFO">${server_received_auth} = True</msg>
+<var>${server_received_auth}</var>
+<arg>"&gt;&gt;&gt; SERVER_RECEIVED_AUTH" in """${server_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.955154" elapsed="0.001863"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.958787" level="INFO">${server_sent_auth_response} = True</msg>
+<var>${server_sent_auth_response}</var>
+<arg>"&gt;&gt;&gt; SERVER_SENT_AUTH_RESPONSE" in """${server_log}"""</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.957067" elapsed="0.001731"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.958958" level="INFO">Client connected to server: True</msg>
+<arg>Client connected to server: ${client_connected}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.958846" elapsed="0.000130"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.959104" level="INFO">Client session started: True</msg>
+<arg>Client session started: ${client_session_started}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.959014" elapsed="0.000106"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.959236" level="INFO">Client session ready: True</msg>
+<arg>Client session ready: ${client_session_ready}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.959154" elapsed="0.000097"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.959368" level="INFO">Client sent auth (acked): True</msg>
+<arg>Client sent auth (acked): ${client_sent_auth}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.959286" elapsed="0.000097"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.959503" level="INFO">Client received auth response: True</msg>
+<arg>Client received auth response: ${client_received_auth_response}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.959417" elapsed="0.000101"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.959638" level="INFO">Client auth success: True</msg>
+<arg>Client auth success: ${client_auth_success}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.959554" elapsed="0.000100"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.959773" level="INFO">Server got connection: True</msg>
+<arg>Server got connection: ${server_got_connection}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.959688" elapsed="0.000100"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.959904" level="INFO">Server session started: True</msg>
+<arg>Server session started: ${server_session_started}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.959821" elapsed="0.000098"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.960036" level="INFO">Server session ready: True</msg>
+<arg>Server session ready: ${server_session_ready}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.959953" elapsed="0.000098"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.960168" level="INFO">Server received auth: True</msg>
+<arg>Server received auth: ${server_received_auth}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.960086" elapsed="0.000097"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.960298" level="INFO">Server sent auth response: True</msg>
+<arg>Server sent auth response: ${server_sent_auth_response}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.960218" elapsed="0.000099"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${client_session_started}</arg>
+<arg>Client: handleClientSession did not start</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.960359" elapsed="0.000122"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${client_session_ready}</arg>
+<arg>Client: session not ready</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.960517" elapsed="0.000099"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${client_sent_auth}</arg>
+<arg>Client: did not send auth request (ACK protocol)</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.960653" elapsed="0.000095"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${client_received_auth_response}</arg>
+<arg>Client: did not receive auth response</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.960784" elapsed="0.000153"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${server_session_started}</arg>
+<arg>Server: handleServerSession did not start</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.960971" elapsed="0.000088"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${server_session_ready}</arg>
+<arg>Server: session not ready</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.961091" elapsed="0.000089"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${server_received_auth}</arg>
+<arg>Server: did not receive auth</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.961213" elapsed="0.000088"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${server_sent_auth_response}</arg>
+<arg>Server: did not send auth response</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.961335" elapsed="0.000103"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.961543" level="INFO">===== TCP CONNECTION SUCCESSFUL =====</msg>
+<arg>===== TCP CONNECTION SUCCESSFUL =====</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.961473" elapsed="0.000085"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.961661" level="INFO">===== Testing Messaging Phase (Skipping - UI timing issues) =====</msg>
+<arg>===== Testing Messaging Phase (Skipping - UI timing issues) =====</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.961590" elapsed="0.000085"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-04-20T16:48:51.961784" level="INFO">===== FULL INTEGRATION TEST COMPLETE =====</msg>
+<arg>===== FULL INTEGRATION TEST COMPLETE =====</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-04-20T16:48:51.961709" elapsed="0.000090"/>
+</kw>
+<doc>Test UDP discovery AND TCP connection between two Android devices</doc>
+<status status="PASS" start="2026-04-20T16:48:16.251937" elapsed="35.709999"/>
+</test>
+<status status="PASS" start="2026-04-20T16:48:16.229331" elapsed="35.733450"/>
+</suite>
+<statistics>
+<total>
+<stat pass="1" fail="0" skip="0">All Tests</stat>
+</total>
+<tag>
+</tag>
+<suite>
+<stat name="Dual Device Test" id="s1" pass="1" fail="0" skip="0">Dual Device Test</stat>
+</suite>
+</statistics>
+<errors>
+</errors>
+</robot>

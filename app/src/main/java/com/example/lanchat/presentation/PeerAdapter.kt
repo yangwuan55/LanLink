@@ -5,7 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
 import android.widget.TextView
-import com.example.lanchat.domain.model.PeerInfo
+import com.ymr.lancomm.domain.model.PeerInfo
 
 class PeerAdapter(
     private val onPeerClick: (PeerInfo) -> Unit

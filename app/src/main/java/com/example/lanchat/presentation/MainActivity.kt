@@ -17,8 +17,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.lanchat.R
 import com.example.lanchat.data.repository.LanRepository
-import com.example.lanchat.domain.model.ConnectionState
-import com.example.lanchat.domain.model.PeerInfo
+import com.ymr.lancomm.domain.model.ConnectionState
+import com.ymr.lancomm.domain.model.PeerInfo
 import com.example.lanchat.service.LanForegroundService
 import com.google.android.material.tabs.TabLayout
 import kotlinx.coroutines.launch

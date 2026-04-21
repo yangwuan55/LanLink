@@ -14,6 +14,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.lanchat.R
 import com.example.lanchat.data.repository.LanRepository
+import com.ymr.lancomm.domain.model.ConnectionState
 import com.example.lanchat.presentation.MainActivity
 
 class LanForegroundService : Service() {
@@ -69,7 +70,7 @@ class LanForegroundService : Service() {
     
     override fun onDestroy() {
         repository?.let {
-            if (it.connectionState.value is com.example.lanchat.domain.model.ConnectionState.Connected) {
+            if (it.connectionState.value is ConnectionState.Connected) {
                 it.disconnect()
             }
         }
