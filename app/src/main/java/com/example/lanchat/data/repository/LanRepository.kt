@@ -57,6 +57,19 @@ class LanRepository(
         )
     }
 
+    // ===== LIFECYCLE =====
+
+    /**
+     * Close all resources and cancel coroutines.
+     * Call this when the repository is no longer needed.
+     */
+    fun close() {
+        scope.cancel()
+        stopServer()
+        stopDiscovery()
+        disconnect()
+    }
+
     // ===== SERVER MODE =====
 
     suspend fun startServer() = withContext(Dispatchers.IO) {
@@ -68,17 +81,17 @@ class LanRepository(
         udpDiscoveryServer = null
 
         isServerMode = true
-        _connectionState.value = ConnectionState.Connecting
+        _connectionState.update { ConnectionState.Connecting }
 
         try {
             Log.d(TAG, "Creating TCP server...")
             tcpServer = TcpSocketServer(port = 0, authProvider = authProvider)
-            serverPort = tcpServer!!.start()
+            serverPort = tcpServer.start()
             Log.d(TAG, "TCP Server started on port $serverPort")
 
             // Collect server messages via Flow
             scope.launch {
-                tcpServer!!.messages.collect { bytes ->
+                tcpServer.messages.collect { bytes ->
                     try {
                         val message = ProtoLanMessage.parseFrom(bytes)
                         Log.d(TAG, "Server received message: ${message.payload}")
@@ -91,7 +104,7 @@ class LanRepository(
 
             // Observe connection state
             scope.launch {
-                tcpServer!!.connectionState.collect { state ->
+                tcpServer.connectionState.collect { state ->
                     when (state) {
                         is ConnectionState.Connected -> {
                             // Server mode connected
@@ -100,7 +113,7 @@ class LanRepository(
                             // Server idle
                         }
                         is ConnectionState.Error -> {
-                            _connectionState.value = state
+                            _connectionState.update { state }
                         }
                         else -> {}
                     }
@@ -111,14 +124,14 @@ class LanRepository(
             Log.d(TAG, "Creating UDP Discovery Server for port $serverPort...")
             udpDiscoveryServer = UdpDiscoveryServer(context, serverPort)
             Log.d(TAG, "Starting UDP Discovery Server...")
-            udpDiscoveryServer!!.start()
+            udpDiscoveryServer.start()
             Log.d(TAG, "UDP Discovery broadcasting on port $serverPort")
 
-            _connectionState.value = ConnectionState.Idle
+            _connectionState.update { ConnectionState.Idle }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start server", e)
             e.printStackTrace()
-            _connectionState.value = ConnectionState.Error("Server failed: ${e.message}")
+            _connectionState.update { ConnectionState.Error("Server failed: ${e.message}") }
             stopServer()
         }
     }
@@ -139,14 +152,14 @@ class LanRepository(
         udpDiscoveryServer?.stop()
         udpDiscoveryServer = null
         isServerMode = false
-        _connectionState.value = ConnectionState.Idle
+        _connectionState.update { ConnectionState.Idle }
     }
 
     // ===== CLIENT MODE =====
 
     suspend fun startDiscovery() = withContext(Dispatchers.IO) {
         isServerMode = false
-        _connectionState.value = ConnectionState.Discovering
+        _connectionState.update { ConnectionState.Discovering }
         Log.d(TAG, "Starting peer discovery")
 
         try {
@@ -154,14 +167,14 @@ class LanRepository(
 
             scope.launch {
                 udpDiscoveryClient!!.discoveredPeers.collect { peers ->
-                    _discoveredPeers.value = peers.map { it.toPeerInfo() }
+                    _discoveredPeers.update { peers.map { it.toPeerInfo() } }
                 }
             }
 
             udpDiscoveryClient!!.start()
         } catch (e: Exception) {
             Log.e(TAG, "Discovery failed", e)
-            _connectionState.value = ConnectionState.Error("Discovery failed: ${e.message}")
+            _connectionState.update { ConnectionState.Error("Discovery failed: ${e.message}") }
         }
     }
 
@@ -169,30 +182,30 @@ class LanRepository(
         Log.d(TAG, "Stopping peer discovery")
         udpDiscoveryClient?.stop()
         udpDiscoveryClient = null
-        _discoveredPeers.value = emptyList()
+        _discoveredPeers.update { emptyList() }
         if (_connectionState.value == ConnectionState.Discovering) {
-            _connectionState.value = ConnectionState.Idle
+            _connectionState.update { ConnectionState.Idle }
         }
     }
 
     suspend fun connectToPeer(peer: PeerInfo) = withContext(Dispatchers.IO) {
-        _connectionState.value = ConnectionState.Connecting
+        _connectionState.update { ConnectionState.Connecting }
 
         try {
             Log.d(TAG, "Connecting to ${peer.name} at ${peer.host}:${peer.port}")
 
             tcpClient = TcpSocketClient()
-            tcpClient!!.connect(peer)
+            tcpClient.connect(peer)
 
             currentPeerName = peer.name
-            _connectionState.value = ConnectionState.Connected(peer.name, isServer = false)
+            _connectionState.update { ConnectionState.Connected(peer.name, isServer = false) }
             Log.d(TAG, "connectToPeer: launching handleClientSession")
 
             scope.launch { handleClientSession() }
             Log.d(TAG, "connectToPeer: handleClientSession launched")
         } catch (e: Exception) {
             Log.e(TAG, "Connection failed", e)
-            _connectionState.value = ConnectionState.Error("Connection failed: ${e.message}")
+            _connectionState.update { ConnectionState.Error("Connection failed: ${e.message}") }
             disconnect()
         }
     }
@@ -244,7 +257,7 @@ class LanRepository(
         tcpClient = null
         currentPeerName = null
         if (_connectionState.value is ConnectionState.Connected) {
-            _connectionState.value = ConnectionState.Idle
+            _connectionState.update { ConnectionState.Idle }
         }
     }
 

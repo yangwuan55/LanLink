@@ -12,6 +12,8 @@ import com.ymr.lancomm.domain.model.PeerInfo
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+private const val MAX_MESSAGES = 500
+
 class LanViewModel(application: Application) : AndroidViewModel(application) {
 
     enum class Role {
@@ -60,7 +62,15 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             messagesFlow.collect { messageList ->
                 messageList.forEach { domainMessage ->
-                    _messages.value = _messages.value + domainMessage
+                    _messages.update { msgs ->
+                        val updated = msgs + domainMessage
+                        // Keep only last MAX_MESSAGES to prevent unbounded growth
+                        if (updated.size > MAX_MESSAGES) {
+                            updated.takeLast(MAX_MESSAGES)
+                        } else {
+                            updated
+                        }
+                    }
                 }
             }
         }
@@ -105,27 +115,36 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun observeRepositoryState() {
+        val repo = repository ?: return
+
         viewModelScope.launch {
-            repository!!.connectionState.collect { state ->
+            repo.connectionState.collect { state ->
                 _connectionState.value = state
                 updateUiStateFromConnection(state)
             }
         }
 
         viewModelScope.launch {
-            repository!!.discoveredPeers.collect { peers ->
+            repo.discoveredPeers.collect { peers ->
                 _discoveredPeers.value = peers
             }
         }
 
         viewModelScope.launch {
-            repository!!.messages.collect { protoMessage ->
+            repo.messages.collect { protoMessage ->
                 val domainMessage = LanMessage(
                     id = protoMessage.id,
                     timestamp = protoMessage.timestamp,
                     payload = protoMessage.payload.toStringUtf8()
                 )
-                _messages.value = _messages.value + domainMessage
+                _messages.update { msgs ->
+                    val updated = msgs + domainMessage
+                    if (updated.size > MAX_MESSAGES) {
+                        updated.takeLast(MAX_MESSAGES)
+                    } else {
+                        updated
+                    }
+                }
             }
         }
     }
@@ -150,8 +169,14 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _uiState.update { it.copy(isServerMode = true, statusMessage = "Starting server...") }
             _authState.value = AuthState.Authenticating
-            val secret = _sharedSecret.value.ifEmpty { "1234" }
-            val authProvider = InMemoryAuthProvider(secret)
+            // Validate PIN format: 6 digits, or use random default
+            val secret = _sharedSecret.value.ifEmpty { null }
+            val authProvider = if (secret != null && secret.length == 6 && secret.all { it.isDigit() }) {
+                InMemoryAuthProvider(secret)
+            } else {
+                // Generate random 6-digit PIN if no valid PIN provided
+                InMemoryAuthProvider()
+            }
             val context = getApplication<Application>().applicationContext
             repository = LanRepository(context, authProvider)
             observeRepositoryState()
@@ -170,8 +195,14 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _uiState.update { it.copy(isServerMode = false, statusMessage = "Starting discovery...") }
             _authState.value = AuthState.Authenticating
-            val secret = _sharedSecret.value.ifEmpty { "1234" }
-            val authProvider = InMemoryAuthProvider(secret)
+            // Validate PIN format: 6 digits, or use random default
+            val secret = _sharedSecret.value.ifEmpty { null }
+            val authProvider = if (secret != null && secret.length == 6 && secret.all { it.isDigit() }) {
+                InMemoryAuthProvider(secret)
+            } else {
+                // Generate random 6-digit PIN if no valid PIN provided
+                InMemoryAuthProvider()
+            }
             val context = getApplication<Application>().applicationContext
             repository = LanRepository(context, authProvider)
             observeRepositoryState()
@@ -209,7 +240,6 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
-        repository?.stopServer()
-        repository?.disconnect()
+        repository?.close()
     }
 }

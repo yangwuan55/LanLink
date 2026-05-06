@@ -11,14 +11,38 @@ A lightweight Android library for LAN (Local Area Network) device-to-device comm
 - **Pluggable Authentication**: Custom auth via `AuthProvider` interface
 - **Flexible Payloads**: ByteArray messages - use any serialization (Protobuf, JSON, binary)
 - **Kotlin Coroutines & Flow**: Modern async API
+- **Heartbeat & Timeout**: Built-in connection health monitoring
+- **Multi-client Support**: Server broadcasts to all connected clients
+- **Brute-force Protection**: Lockout after failed authentication attempts
 
 ## Installation
 
+### Gradle (Kotlin DSL)
+
 ```groovy
 dependencies {
-    implementation 'com.ymr.lancomm:core:1.0.0'
+    implementation(project(":lanchat-core"))
 }
 ```
+
+### Requirements
+
+```groovy
+// settings.gradle.kts
+include(":lanchat-core")
+```
+
+### Permissions (AndroidManifest.xml)
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+<uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+```
+
+> Note: `ACCESS_FINE_LOCATION` is required for WiFi device discovery on Android 10+.
 
 ## Quick Start
 
@@ -38,6 +62,16 @@ class MyAuthProvider : AuthProvider {
 }
 ```
 
+For shared secret authentication, use the built-in `InMemoryAuthProvider`:
+
+```kotlin
+// 6-digit PIN (required format)
+val authProvider = InMemoryAuthProvider("123456")
+
+// Or generate random secure PIN
+val authProvider = InMemoryAuthProvider()  // Random 100000-999999
+```
+
 ### 2. Set Up Discovery
 
 ```kotlin
@@ -54,7 +88,7 @@ repository.discoveredPeers.collect { peers ->
 ### 3. Connect and Send Messages
 
 ```kotlin
-// Server mode
+// Server mode (broadcasts to all clients)
 repository.startServer()
 
 // Client mode
@@ -69,6 +103,13 @@ repository.messages.collect { message ->
 repository.sendMessage("Hello!")
 ```
 
+### 4. Cleanup
+
+```kotlin
+// When done, release resources
+repository.close()
+```
+
 ## API Overview
 
 ### Core Components
@@ -76,7 +117,7 @@ repository.sendMessage("Hello!")
 | Component | Description |
 |-----------|-------------|
 | `LanRepository` | Main entry point for all LAN communication |
-| `TcpSocketServer` | TCP server for accepting connections |
+| `TcpSocketServer` | TCP server for accepting connections (multi-client) |
 | `TcpSocketClient` | TCP client for connecting to peers |
 | `UdpDiscoveryServer` | UDP broadcast server (advertises presence) |
 | `UdpDiscoveryClient` | UDP broadcast client (discovers peers) |
@@ -96,6 +137,13 @@ sealed class AuthResult {
     data class Failure(val message: String) : AuthResult()
 }
 ```
+
+### Built-in Auth Providers
+
+| Provider | Description |
+|----------|-------------|
+| `NoOpAuthProvider` | Accepts all connections (testing only) |
+| `InMemoryAuthProvider` | 6-digit PIN with brute-force protection |
 
 ### Flow APIs
 
@@ -139,14 +187,105 @@ repository.messages.collect { bytes ->
 
 For Protobuf, use `com.google.protobuf` with custom_data fields in AuthRequest/AuthResponse.
 
-## Permissions
+## Error Handling
 
-```xml
-<uses-permission android:name="android.permission.INTERNET" />
-<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-<uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+All network operations can throw exceptions. Wrap in try-catch:
+
+```kotlin
+try {
+    repository.sendMessage("Hello")
+} catch (e: Exception) {
+    println("Send failed: ${e.message}")
+}
 ```
+
+### Common Errors
+
+| Error | Cause |
+|-------|-------|
+| `Connection failed: ...` | Cannot reach peer |
+| `Unknown host: ...` | Invalid IP/hostname |
+| `Account locked...` | Too many failed auth attempts |
+
+## Configuration
+
+### TcpSocketServer
+
+```kotlin
+TcpSocketServer(
+    port = 0,                    // Auto-select port
+    authProvider = authProvider,
+    connectionTimeoutMs = 30_000, // Heartbeat timeout
+    heartbeatIntervalMs = 15_000  // Heartbeat interval
+)
+```
+
+### TcpSocketClient
+
+```kotlin
+TcpSocketClient(
+    connectionTimeoutMs = 10_000,  // TCP connect timeout
+    readTimeoutMs = 30_000,       // Socket read timeout
+    heartbeatIntervalMs = 15_000  // Heartbeat interval
+)
+```
+
+### InMemoryAuthProvider
+
+```kotlin
+InMemoryAuthProvider(
+    expectedPin = "123456"        // 6-digit PIN
+)
+// Brute-force protection: 5 attempts, then 30s lockout
+```
+
+## Architecture
+
+```
+app/
+├── presentation/
+│   ├── MainActivity.kt       # UI
+│   └── LanViewModel.kt       # Presentation logic
+├── data/
+│   └── repository/
+│       └── LanRepository.kt   # Facade for core library
+└── service/
+    └── LanForegroundService.kt
+
+lanchat-core/
+├── data/
+│   ├── socket/               # TCP client/server
+│   ├── discovery/            # UDP/NSD discovery
+│   └── auth/                  # Auth providers
+└── domain/
+    ├── model/                # Domain models
+    └── auth/                  # Auth interfaces
+```
+
+## Testing
+
+```bash
+# Unit tests (lanchat-core)
+./gradlew :lanchat-core:test
+
+# Unit tests (app)
+./gradlew :app:test
+
+# Android instrumented tests
+./gradlew :app:connectedAndroidTest
+
+# Robot Framework E2E tests
+./tests/run_test.sh
+```
+
+## Security Considerations
+
+> **WARNING**: Default PIN authentication sends credentials in plain text.
+
+For production use:
+- Implement TLS/SSL encryption
+- Use certificate-based authentication
+- Consider using a proper authentication library
 
 ## License
 

@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import java.net.Socket
 import java.net.SocketException
 import java.net.UnknownHostException
@@ -20,13 +21,19 @@ import java.net.UnknownHostException
  * TCP Socket Client that connects to a TCP server.
  * Provides Flow-based APIs for connection state and messages.
  */
-class TcpSocketClient {
+class TcpSocketClient(
+    private val connectionTimeoutMs: Long = 10_000,
+    private val readTimeoutMs: Long = 30_000,
+    private val heartbeatIntervalMs: Long = 15_000
+) {
     private var socket: Socket? = null
     private var _protobufChannel: ProtobufChannel? = null
     val protobufChannel: ProtobufChannel?
         get() = _protobufChannel
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var readLoopJob: Job? = null
+    private var heartbeatJob: Job? = null
+    private var lastHeartbeatSend: Long = 0
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
@@ -44,33 +51,34 @@ class TcpSocketClient {
 
     suspend fun connect(peer: PeerInfo) = withContext(Dispatchers.IO) {
         currentRetry = 0
-        _connectionState.value = ConnectionState.Connecting
-        
+        _connectionState.update { ConnectionState.Connecting }
+
         while (currentRetry < maxRetries && _connectionState.value is ConnectionState.Connecting) {
             try {
                 Log.d(TAG, "Connecting to ${peer.host}:${peer.port} (attempt ${currentRetry + 1})")
 
-                socket = Socket(peer.host.hostAddress, peer.port).apply {
-                    soTimeout = 0  // No timeout
+                socket = Socket().apply {
+                    connect(java.net.InetSocketAddress(peer.host.hostAddress, peer.port), connectionTimeoutMs.toInt())
+                    soTimeout = readTimeoutMs.toInt()
+                    keepAlive = true
                 }
 
                 // Create ProtobufChannel for protobuf-based communication
                 _protobufChannel = ProtobufChannel(socket!!.getInputStream(), socket!!.getOutputStream())
 
-                _connectionState.value = ConnectionState.Connected(peer.name, false)
+                _connectionState.update { ConnectionState.Connected(peer.name, false) }
                 currentRetry = 0
                 Log.d(TAG, "Connected to ${peer.host}:${peer.port}")
 
-                // Start read loop
-                readLoopJob = scope.launch {
-                    readLoop()
-                }
+                // Start read loop and heartbeat
+                readLoopJob = scope.launch { readLoop() }
+                startHeartbeat()
 
                 return@withContext
 
             } catch (e: UnknownHostException) {
                 Log.e(TAG, "Unknown host: ${peer.host}", e)
-                _connectionState.value = ConnectionState.Error("Unknown host: ${e.message}")
+                _connectionState.update { ConnectionState.Error("Unknown host: ${e.message}") }
                 break
             } catch (e: SocketException) {
                 Log.e(TAG, "Socket error during connect", e)
@@ -80,12 +88,44 @@ class TcpSocketClient {
                     Log.d(TAG, "Retrying in ${delayMs}ms...")
                     delay(delayMs)
                 } else {
-                    _connectionState.value = ConnectionState.Error("Connection failed: ${e.message}")
+                    _connectionState.update { ConnectionState.Error("Connection failed: ${e.message}") }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Unexpected error during connect", e)
-                _connectionState.value = ConnectionState.Error("Connection failed: ${e.message}")
+                _connectionState.update { ConnectionState.Error("Connection failed: ${e.message}") }
                 break
+            }
+        }
+    }
+
+    private fun startHeartbeat() {
+        heartbeatJob?.cancel()
+        heartbeatJob = scope.launch {
+            while (isActive && _connectionState.value is ConnectionState.Connected) {
+                delay(heartbeatIntervalMs)
+                sendHeartbeatIfNeeded()
+            }
+        }
+    }
+
+    private suspend fun sendHeartbeatIfNeeded() {
+        val now = System.currentTimeMillis()
+        if (now - lastHeartbeatSend >= heartbeatIntervalMs) {
+            lastHeartbeatSend = now
+            try {
+                // Send a ping message as heartbeat
+                val pingMessage = LanMessage.newBuilder()
+                    .setId("heartbeat-$now")
+                    .setTimestamp(now)
+                    .setPayload(ByteString.copyFromUtf8("__PING__"))
+                    .build()
+                _protobufChannel?.let { channel ->
+                    channel.send(pingMessage)
+                    Log.d(TAG, "Heartbeat sent")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Heartbeat send failed, may be disconnected", e)
+                // Don't disconnect here - let read loop detect the failure
             }
         }
     }
@@ -98,17 +138,29 @@ class TcpSocketClient {
                     try {
                         val lanMessage = channel.receiveLanMessage()
                         val bytes = lanMessage.payload.toByteArray()
+
+                        // Ignore heartbeat responses
+                        if (lanMessage.id.startsWith("heartbeat-")) {
+                            Log.d(TAG, "Heartbeat response received")
+                            continue
+                        }
+
                         Log.d(TAG, "Received ${bytes.size} bytes")
                         _messages.emit(bytes)
                     } catch (e: SocketException) {
-                        Log.d(TAG, "Read error", e)
+                        Log.d(TAG, "Read error, connection may be lost", e)
+                        break
+                    } catch (e: java.net.SocketTimeoutException) {
+                        Log.w(TAG, "Read timeout, connection may be dead")
                         break
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Read loop error", e)
             } finally {
-                disconnect()
+                if (_connectionState.value is ConnectionState.Connected) {
+                    disconnect()
+                }
             }
         }
     }
@@ -130,7 +182,7 @@ class TcpSocketClient {
     }
 
     fun disconnect() {
-        _connectionState.value = ConnectionState.Idle
+        heartbeatJob?.cancel()
         readLoopJob?.cancel()
         _protobufChannel = null
         try {
@@ -139,6 +191,7 @@ class TcpSocketClient {
             Log.e(TAG, "Error closing socket", e)
         }
         socket = null
+        _connectionState.update { ConnectionState.Idle }
         Log.d(TAG, "Disconnected")
     }
 }
