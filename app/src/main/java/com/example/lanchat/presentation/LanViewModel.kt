@@ -9,10 +9,12 @@ import com.ymr.lancomm.domain.auth.AuthProvider
 import com.ymr.lancomm.domain.model.ConnectionState
 import com.ymr.lancomm.domain.model.LanMessage
 import com.ymr.lancomm.domain.model.PeerInfo
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 private const val MAX_MESSAGES = 500
+private const val SHARED_SECRET_LENGTH = 6
 
 class LanViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -29,6 +31,31 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
 
     private var repository: LanRepository? = null
     private var isTestMode = false
+    private val repositoryObserverJobs = mutableListOf<Job>()
+
+    val currentRepository: LanRepository?
+        get() = repository
+
+    private fun createAuthProviderFromSecret(): AuthProvider {
+        val secret = _sharedSecret.value.ifEmpty { null }
+        return if (secret != null && secret.length == SHARED_SECRET_LENGTH && secret.all { it.isDigit() }) {
+            InMemoryAuthProvider(secret)
+        } else {
+            InMemoryAuthProvider()
+        }
+    }
+
+    private fun replaceRepository(authProvider: AuthProvider): LanRepository {
+        clearRepositoryObservers()
+        repository?.close()
+        val context = getApplication<Application>().applicationContext
+        return LanRepository(context, authProvider).also { repository = it }
+    }
+
+    private fun clearRepositoryObservers() {
+        repositoryObserverJobs.forEach { it.cancel() }
+        repositoryObserverJobs.clear()
+    }
 
     /**
      * For testing only - allows injecting a mock repository
@@ -115,22 +142,24 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun observeRepositoryState() {
+        clearRepositoryObservers()
+
         val repo = repository ?: return
 
-        viewModelScope.launch {
+        repositoryObserverJobs += viewModelScope.launch {
             repo.connectionState.collect { state ->
                 _connectionState.value = state
                 updateUiStateFromConnection(state)
             }
         }
 
-        viewModelScope.launch {
+        repositoryObserverJobs += viewModelScope.launch {
             repo.discoveredPeers.collect { peers ->
                 _discoveredPeers.value = peers
             }
         }
 
-        viewModelScope.launch {
+        repositoryObserverJobs += viewModelScope.launch {
             repo.messages.collect { protoMessage ->
                 val domainMessage = LanMessage(
                     id = protoMessage.id,
@@ -169,16 +198,7 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _uiState.update { it.copy(isServerMode = true, statusMessage = "Starting server...") }
             _authState.value = AuthState.Authenticating
-            // Validate PIN format: 6 digits, or use random default
-            val secret = _sharedSecret.value.ifEmpty { null }
-            val authProvider = if (secret != null && secret.length == 6 && secret.all { it.isDigit() }) {
-                InMemoryAuthProvider(secret)
-            } else {
-                // Generate random 6-digit PIN if no valid PIN provided
-                InMemoryAuthProvider()
-            }
-            val context = getApplication<Application>().applicationContext
-            repository = LanRepository(context, authProvider)
+            replaceRepository(createAuthProviderFromSecret())
             observeRepositoryState()
             repository?.startServer()
         }
@@ -195,19 +215,47 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _uiState.update { it.copy(isServerMode = false, statusMessage = "Starting discovery...") }
             _authState.value = AuthState.Authenticating
-            // Validate PIN format: 6 digits, or use random default
-            val secret = _sharedSecret.value.ifEmpty { null }
-            val authProvider = if (secret != null && secret.length == 6 && secret.all { it.isDigit() }) {
-                InMemoryAuthProvider(secret)
-            } else {
-                // Generate random 6-digit PIN if no valid PIN provided
-                InMemoryAuthProvider()
-            }
-            val context = getApplication<Application>().applicationContext
-            repository = LanRepository(context, authProvider)
+            replaceRepository(createAuthProviderFromSecret())
             observeRepositoryState()
             repository?.startDiscovery()
+
+            // Auto-connect to first discovered peer
+            val repo = repository ?: return@launch
+            val peer = repo.discoveredPeers.first { it.isNotEmpty() }.first()
+            _uiState.update { it.copy(statusMessage = "Found ${peer.name}, connecting...") }
+            repo.connectToPeer(peer)
         }
+    }
+
+    fun startMatching(): LanRepository {
+        _uiState.update { it.copy(isServerMode = false, statusMessage = "Starting matching...") }
+        _authState.value = AuthState.Authenticating
+        val repo = replaceRepository(createAuthProviderFromSecret())
+        observeRepositoryState()
+        viewModelScope.launch {
+            runMatching(repo)
+        }
+        return repo
+    }
+
+    private suspend fun runMatching(repo: LanRepository) {
+        repo.startMatching()
+
+        val peer = merge(
+            repo.discoveredPeers.map { peers -> peers.firstOrNull() },
+            repo.connectionState
+                .filterIsInstance<ConnectionState.Connected>()
+                .map { null as PeerInfo? }
+        )
+            .filter { peer -> peer != null || repo.connectionState.value is ConnectionState.Connected }
+            .first()
+
+        if (peer == null || repo.connectionState.value is ConnectionState.Connected) {
+            return
+        }
+
+        _uiState.update { it.copy(statusMessage = "Found ${peer.name}, connecting...") }
+        repo.connectToPeer(peer)
     }
 
     fun stopDiscovery() {

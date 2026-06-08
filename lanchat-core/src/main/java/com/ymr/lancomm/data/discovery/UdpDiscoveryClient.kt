@@ -8,8 +8,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
+import java.net.InetSocketAddress
 
-class UdpDiscoveryClient {
+class UdpDiscoveryClient(
+    private val ignoredServicePorts: Set<Int> = emptySet()
+) {
     private var socket: DatagramSocket? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var isRunning = false
@@ -32,9 +35,10 @@ class UdpDiscoveryClient {
 
         scope.launch {
             try {
-                socket = DatagramSocket(LISTEN_PORT).apply {
-                    setBroadcast(true)
+                socket = DatagramSocket(null).apply {
                     reuseAddress = true
+                    bind(InetSocketAddress(LISTEN_PORT))
+                    setBroadcast(true)
                 }
                 _state.value = UdpDiscoveryState.Listening
                 Log.d(TAG, "UDP Discovery Client started on port $LISTEN_PORT")
@@ -63,6 +67,10 @@ class UdpDiscoveryClient {
                 val name = parts[1]
                 val host = parts[2]
                 val port = parts[3].toIntOrNull() ?: return
+                if (port in ignoredServicePorts) {
+                    Log.d(TAG, "Ignoring local peer announcement on port $port")
+                    return
+                }
 
                 Log.d(TAG, "Discovered peer: $name at $host:$port")
 

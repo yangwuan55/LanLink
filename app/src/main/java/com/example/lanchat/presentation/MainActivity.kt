@@ -17,7 +17,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.lanchat.R
-import com.example.lanchat.data.repository.LanRepository
 import com.ymr.lancomm.domain.model.ConnectionState
 import com.ymr.lancomm.domain.model.PeerInfo
 import com.example.lanchat.service.LanForegroundService
@@ -26,13 +25,14 @@ import android.text.TextWatcher
 import kotlinx.coroutines.launch
 
 private const val TAG = "MainActivity"
+private const val SHARED_SECRET_LENGTH = 6
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var viewModel: LanViewModel
     private var lanService: LanForegroundService? = null
     private var serviceBound = false
-    private var repository: LanRepository? = null
+    private var matchingStarted = false
 
     // UI components
     private lateinit var roleSelection: RadioGroup
@@ -51,12 +51,16 @@ class MainActivity : AppCompatActivity() {
     private val messageAdapter = MessageAdapter()
     private lateinit var peerAdapter: PeerAdapter
 
+    private fun hasValidSharedSecret(): Boolean {
+        return currentSecretKey.length == SHARED_SECRET_LENGTH && currentSecretKey.all { it.isDigit() }
+    }
+
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as LanForegroundService.LocalBinder
             lanService = binder.getService()
             serviceBound = true
-            repository?.let { lanService?.setRepository(it) }
+            viewModel.currentRepository?.let { lanService?.setRepository(it) }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -99,6 +103,9 @@ class MainActivity : AppCompatActivity() {
         roleSelection.setOnCheckedChangeListener { _, checkedId ->
             isServerMode = checkedId == R.id.radio_server
             updateUiForMode()
+            if (hasValidSharedSecret()) {
+                autoStartMatching()
+            }
         }
     }
 
@@ -109,8 +116,22 @@ class MainActivity : AppCompatActivity() {
             override fun afterTextChanged(s: Editable?) {
                 currentSecretKey = s?.toString() ?: ""
                 viewModel.updateSharedSecret(currentSecretKey)
+                if (hasValidSharedSecret()) {
+                    autoStartMatching()
+                }
             }
         })
+    }
+
+    private fun autoStartMatching() {
+        val state = viewModel.connectionState.value
+        if (matchingStarted) return
+        if (state !is ConnectionState.Idle) return
+        matchingStarted = true
+        val repository = viewModel.startMatching()
+        LanForegroundService.start(this)
+        bindService()
+        lanService?.setRepository(repository)
     }
 
     private fun setupClickListeners() {
@@ -121,6 +142,7 @@ class MainActivity : AppCompatActivity() {
                 val state = viewModel.connectionState.value
                 when (state) {
                     is ConnectionState.Connected -> {
+                        matchingStarted = false
                         viewModel.stopServer()
                         LanForegroundService.stop(this)
                     }
@@ -132,6 +154,7 @@ class MainActivity : AppCompatActivity() {
                         bindService()
                     }
                     is ConnectionState.Connecting -> {
+                        matchingStarted = false
                         viewModel.stopServer()
                         LanForegroundService.stop(this)
                     }
@@ -182,8 +205,6 @@ class MainActivity : AppCompatActivity() {
         viewModel = ViewModelProvider(this)[LanViewModel::class.java]
         viewModel.initialize()
 
-        repository = LanRepository(applicationContext)
-
         setupRoleSelection()
         setupSecretKeyInput()
         setupClickListeners()
@@ -223,6 +244,7 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "Connection state changed to: ${state::class.simpleName}")
         when (state) {
             is ConnectionState.Connected -> {
+                matchingStarted = false
                 progressBar.visibility = ProgressBar.GONE
                 startStopButton.isEnabled = true
             }
@@ -231,6 +253,9 @@ class MainActivity : AppCompatActivity() {
                 startStopButton.isEnabled = true
             }
             else -> {
+                if (state is ConnectionState.Error) {
+                    matchingStarted = false
+                }
                 progressBar.visibility = ProgressBar.GONE
                 startStopButton.isEnabled = true
             }

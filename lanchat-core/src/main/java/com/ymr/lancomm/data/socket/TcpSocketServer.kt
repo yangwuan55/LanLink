@@ -16,8 +16,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import java.io.BufferedWriter
-import java.io.OutputStreamWriter
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
@@ -50,6 +48,9 @@ class TcpSocketServer(
     private val _messages = MutableSharedFlow<ByteArray>(replay = 0)
     val messages: SharedFlow<ByteArray> = _messages.asSharedFlow()
 
+    private val _authenticatedPeers = MutableSharedFlow<PeerInfo>(replay = 0)
+    val authenticatedPeers: SharedFlow<PeerInfo> = _authenticatedPeers.asSharedFlow()
+
     private var actualPort: Int = 0
     private var heartbeatJob: Job? = null
 
@@ -59,11 +60,12 @@ class TcpSocketServer(
 
     suspend fun start(): Int = withContext(Dispatchers.IO) {
         try {
-            serverSocket = ServerSocket(port).apply {
+            val server = ServerSocket(port).apply {
                 soTimeout = 0  // No timeout for accept, read uses channel timeout
                 reuseAddress = true
             }
-            actualPort = serverSocket!!.localPort
+            serverSocket = server
+            actualPort = server.localPort
             _connectionState.value = ConnectionState.Connected("server", true)
             Log.d(TAG, "Server started on port $actualPort")
 
@@ -110,9 +112,12 @@ class TcpSocketServer(
     }
 
     private suspend fun acceptLoop() = withContext(Dispatchers.IO) {
-        while (isActive && serverSocket != null && !serverSocket!!.isClosed) {
+        while (isActive) {
             try {
-                val clientSocket = serverSocket!!.accept()
+                val server = serverSocket ?: break
+                if (server.isClosed) break
+
+                val clientSocket = server.accept()
                 clientSocket.soTimeout = (connectionTimeoutMs * 2).toInt()
                 val clientId = "${clientSocket.remoteSocketAddress}"
                 Log.d(TAG, "Client connected from $clientId")
@@ -147,9 +152,8 @@ class TcpSocketServer(
     }
 
     private suspend fun handleClient(socket: Socket, peer: PeerInfo, clientId: String) = withContext(Dispatchers.IO) {
-        var protobufChannel: ProtobufChannel? = null
         try {
-            protobufChannel = ProtobufChannel(socket.getInputStream(), socket.getOutputStream())
+            val protobufChannel = ProtobufChannel(socket.getInputStream(), socket.getOutputStream())
 
             // Auth handshake - receive AuthRequest
             val authRequest = protobufChannel.receiveAuthRequest()
@@ -181,26 +185,33 @@ class TcpSocketServer(
                 return@withContext
             }
 
-            Log.d(TAG, "Authentication successful for $clientId")
-
             // Store channel for sending
             synchronized(clientSocketsLock) {
                 clientChannels[clientId] = protobufChannel
                 clientLastHeartbeat[clientId] = System.currentTimeMillis()
             }
+            Log.d(TAG, "Authentication successful for $clientId")
+            _authenticatedPeers.emit(peer)
 
             // Continue with normal message handling using ProtobufChannel
             while (isActive && !socket.isClosed && socket.isConnected) {
                 try {
                     val lanMessage = protobufChannel.receiveLanMessage()
-                    val bytes = lanMessage.payload.toByteArray()
-                    Log.d(TAG, "Received ${bytes.size} bytes from $clientId")
 
-                    // Update heartbeat on message received
+                    // Update heartbeat on any message received
                     synchronized(clientSocketsLock) {
                         clientLastHeartbeat[clientId] = System.currentTimeMillis()
                     }
 
+                    // Skip heartbeat pings
+                    if (lanMessage.id.startsWith("heartbeat-")) {
+                        Log.d(TAG, "Heartbeat ping from $clientId")
+                        protobufChannel.send(lanMessage)
+                        continue
+                    }
+
+                    val bytes = lanMessage.payload.toByteArray()
+                    Log.d(TAG, "Received ${bytes.size} bytes from $clientId")
                     _messages.emit(bytes)
                 } catch (e: SocketException) {
                     Log.d(TAG, "Read error from $clientId", e)
@@ -266,8 +277,7 @@ class TcpSocketServer(
         }
 
         if (clientsToSend.isEmpty()) {
-            Log.w(TAG, "No clients connected, cannot broadcast")
-            return@withContext
+            throw IllegalStateException("No clients connected")
         }
 
         val lanMessage = LanMessage.newBuilder()
@@ -278,7 +288,7 @@ class TcpSocketServer(
 
         val now = System.currentTimeMillis()
         var sentCount = 0
-        var failedClients = mutableListOf<String>()
+        val failedClients = mutableListOf<String>()
 
         clientsToSend.forEach { (clientId, channel) ->
             try {
@@ -300,6 +310,10 @@ class TcpSocketServer(
         // Clean up failed clients
         failedClients.forEach { clientId ->
             disconnectClient(clientId)
+        }
+
+        if (sentCount == 0) {
+            throw IllegalStateException("No clients accepted broadcast")
         }
 
         Log.d(TAG, "Broadcast to $sentCount clients (${failedClients.size} failed)")

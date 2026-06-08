@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
+import java.net.InetSocketAddress
 
 class UdpDiscoveryServer(
     private val context: Context,
@@ -37,9 +38,10 @@ class UdpDiscoveryServer(
 
         scope.launch {
             try {
-                socket = DatagramSocket(DISCOVERY_PORT).apply {
-                    setBroadcast(true)
+                socket = DatagramSocket(null).apply {
                     reuseAddress = true
+                    bind(InetSocketAddress(DISCOVERY_PORT))
+                    setBroadcast(true)
                 }
                 _state.value = UdpDiscoveryState.Broadcasting
                 Log.d(TAG, "UDP Discovery Server started on port $DISCOVERY_PORT")

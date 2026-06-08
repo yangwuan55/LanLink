@@ -57,22 +57,19 @@ class TcpSocketClient(
             try {
                 Log.d(TAG, "Connecting to ${peer.host}:${peer.port} (attempt ${currentRetry + 1})")
 
-                socket = Socket().apply {
+                val connectedSocket = Socket().apply {
                     connect(java.net.InetSocketAddress(peer.host.hostAddress, peer.port), connectionTimeoutMs.toInt())
                     soTimeout = readTimeoutMs.toInt()
                     keepAlive = true
                 }
+                socket = connectedSocket
 
                 // Create ProtobufChannel for protobuf-based communication
-                _protobufChannel = ProtobufChannel(socket!!.getInputStream(), socket!!.getOutputStream())
+                _protobufChannel = ProtobufChannel(connectedSocket.getInputStream(), connectedSocket.getOutputStream())
 
                 _connectionState.update { ConnectionState.Connected(peer.name, false) }
                 currentRetry = 0
                 Log.d(TAG, "Connected to ${peer.host}:${peer.port}")
-
-                // Start read loop and heartbeat
-                readLoopJob = scope.launch { readLoop() }
-                startHeartbeat()
 
                 return@withContext
 
@@ -96,6 +93,12 @@ class TcpSocketClient(
                 break
             }
         }
+    }
+
+    fun startReadLoop() {
+        readLoopJob = scope.launch { readLoop() }
+        startHeartbeat()
+        Log.d(TAG, "Read loop and heartbeat started")
     }
 
     private fun startHeartbeat() {
