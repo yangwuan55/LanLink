@@ -7,6 +7,7 @@ import com.example.lanchat.data.repository.LanRepository
 import com.ymr.lancomm.domain.model.ConnectionState
 import com.ymr.lancomm.domain.model.LanMessage
 import com.ymr.lancomm.domain.model.PeerInfo
+import com.ymr.lancomm.net.android.AndroidLanNetworkFactory
 import com.ymr.lancomm.service.PinConnectionServiceImpl
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -63,8 +64,7 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         if (repository != null) {
             this.repository = repository
         } else {
-            val context = getApplication<Application>().applicationContext
-            val service = PinConnectionServiceImpl(context)
+            val service = PinConnectionServiceImpl(AndroidLanNetworkFactory())
             this.repository = LanRepository(service)
         }
         observeRepositoryState()
@@ -186,8 +186,7 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(isServerMode = isServer, statusMessage = "Starting matching...") }
         _authState.value = AuthState.Authenticating
         val repo = repository ?: run {
-            val context = getApplication<Application>().applicationContext
-            val service = PinConnectionServiceImpl(context)
+            val service = PinConnectionServiceImpl(AndroidLanNetworkFactory())
             LanRepository(service).also {
                 repository = it
                 observeRepositoryState()

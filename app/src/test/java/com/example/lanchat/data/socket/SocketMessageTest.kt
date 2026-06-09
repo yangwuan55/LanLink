@@ -1,5 +1,6 @@
 package com.example.lanchat.data.socket
 
+import com.ymr.lancomm.data.socket.SocketMessage
 import org.junit.Assert.*
 import org.junit.Test
 
