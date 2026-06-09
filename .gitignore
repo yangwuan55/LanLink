@@ -13,6 +13,12 @@ build/
 # Local config
 local.properties
 
+# Local AI/process artifacts
+.claude/
+.codegraph/
+.omc/
+progress.txt
+
 # Protobuf generated
 app/build/generated/
 

@@ -64,7 +64,7 @@ class TcpSocketServerTest {
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())
         server.start()
         // Broadcast should not throw even with no clients
-        server.broadcast("test".toByteArray())
+        server.broadcast(0, "test".toByteArray())
         server.stop()
     }
 
@@ -73,7 +73,7 @@ class TcpSocketServerTest {
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())
         server.start()
         // Send should not throw even with no clients
-        server.send("test".toByteArray())
+        server.send(0, "test".toByteArray())
         server.stop()
     }
 
@@ -82,7 +82,7 @@ class TcpSocketServerTest {
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())
         server.start()
         // Should not throw for non-existent client
-        server.sendToClient("non-existent-client", "test".toByteArray())
+        server.sendToClient("non-existent-client", 0, "test".toByteArray())
         server.stop()
     }
 

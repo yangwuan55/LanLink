@@ -38,8 +38,9 @@ class TcpSocketClient(
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
-    private val _messages = MutableSharedFlow<ByteArray>(replay = 0)
-    val messages: SharedFlow<ByteArray> = _messages.asSharedFlow()
+    // Each frame carries its wire type tag alongside the payload bytes.
+    private val _messages = MutableSharedFlow<Pair<Int, ByteArray>>(replay = 0)
+    val messages: SharedFlow<Pair<Int, ByteArray>> = _messages.asSharedFlow()
 
     private var maxRetries = 3
     private var baseDelayMs = 1000L
@@ -148,8 +149,8 @@ class TcpSocketClient(
                             continue
                         }
 
-                        Log.d(TAG, "Received ${bytes.size} bytes")
-                        _messages.emit(bytes)
+                        Log.d(TAG, "Received ${bytes.size} bytes (type=${lanMessage.type})")
+                        _messages.emit(lanMessage.type to bytes)
                     } catch (e: SocketException) {
                         Log.d(TAG, "Read error, connection may be lost", e)
                         break
@@ -168,16 +169,17 @@ class TcpSocketClient(
         }
     }
 
-    suspend fun send(message: ByteArray) = withContext(Dispatchers.IO) {
+    suspend fun send(type: Int, message: ByteArray) = withContext(Dispatchers.IO) {
         val channel = _protobufChannel ?: throw IllegalStateException("Not connected")
         try {
             val lanMessage = LanMessage.newBuilder()
                 .setId(java.util.UUID.randomUUID().toString())
                 .setTimestamp(System.currentTimeMillis())
                 .setPayload(ByteString.copyFrom(message))
+                .setType(type)
                 .build()
             channel.send(lanMessage)
-            Log.d(TAG, "Sent ${message.size} bytes")
+            Log.d(TAG, "Sent ${message.size} bytes (type=$type)")
         } catch (e: Exception) {
             Log.e(TAG, "Send error", e)
             throw e

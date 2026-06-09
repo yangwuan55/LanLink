@@ -45,8 +45,9 @@ class TcpSocketServer(
     private val _connectedPeers = MutableStateFlow<List<PeerInfo>>(emptyList())
     val connectedPeers: StateFlow<List<PeerInfo>> = _connectedPeers.asStateFlow()
 
-    private val _messages = MutableSharedFlow<ByteArray>(replay = 0)
-    val messages: SharedFlow<ByteArray> = _messages.asSharedFlow()
+    // Each frame carries its wire type tag alongside the payload bytes.
+    private val _messages = MutableSharedFlow<Pair<Int, ByteArray>>(replay = 0)
+    val messages: SharedFlow<Pair<Int, ByteArray>> = _messages.asSharedFlow()
 
     private val _authenticatedPeers = MutableSharedFlow<PeerInfo>(replay = 0)
     val authenticatedPeers: SharedFlow<PeerInfo> = _authenticatedPeers.asSharedFlow()
@@ -211,8 +212,8 @@ class TcpSocketServer(
                     }
 
                     val bytes = lanMessage.payload.toByteArray()
-                    Log.d(TAG, "Received ${bytes.size} bytes from $clientId")
-                    _messages.emit(bytes)
+                    Log.d(TAG, "Received ${bytes.size} bytes from $clientId (type=${lanMessage.type})")
+                    _messages.emit(lanMessage.type to bytes)
                 } catch (e: SocketException) {
                     Log.d(TAG, "Read error from $clientId", e)
                     break
@@ -240,7 +241,7 @@ class TcpSocketServer(
     /**
      * Send message to a specific client by ID.
      */
-    suspend fun sendToClient(clientId: String, message: ByteArray) = withContext(Dispatchers.IO) {
+    suspend fun sendToClient(clientId: String, type: Int, message: ByteArray) = withContext(Dispatchers.IO) {
         val channel = synchronized(clientSocketsLock) {
             clientChannels[clientId]
         }
@@ -251,6 +252,7 @@ class TcpSocketServer(
                     .setId(java.util.UUID.randomUUID().toString())
                     .setTimestamp(System.currentTimeMillis())
                     .setPayload(ByteString.copyFrom(message))
+                    .setType(type)
                     .build()
                 ch.send(lanMessage)
                 // Update heartbeat on send
@@ -270,7 +272,7 @@ class TcpSocketServer(
     /**
      * Broadcast message to all connected clients.
      */
-    suspend fun broadcast(message: ByteArray) = withContext(Dispatchers.IO) {
+    suspend fun broadcast(type: Int, message: ByteArray) = withContext(Dispatchers.IO) {
         val clientsToSend: Map<String, ProtobufChannel>
         synchronized(clientSocketsLock) {
             clientsToSend = clientChannels.toMap()
@@ -284,6 +286,7 @@ class TcpSocketServer(
             .setId(java.util.UUID.randomUUID().toString())
             .setTimestamp(System.currentTimeMillis())
             .setPayload(ByteString.copyFrom(message))
+            .setType(type)
             .build()
 
         val now = System.currentTimeMillis()
@@ -323,8 +326,8 @@ class TcpSocketServer(
      * Send message to first available client (legacy behavior for backward compatibility).
      * Prefer broadcast() for sending to all clients.
      */
-    suspend fun send(message: ByteArray) {
-        broadcast(message)
+    suspend fun send(type: Int, message: ByteArray) {
+        broadcast(type, message)
     }
 
     fun stop() {

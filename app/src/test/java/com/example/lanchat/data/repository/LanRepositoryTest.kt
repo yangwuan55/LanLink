@@ -2,11 +2,9 @@ package com.example.lanchat.data.repository
 
 import com.ymr.lancomm.domain.model.ConnectionState
 import com.ymr.lancomm.domain.model.PeerInfo
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import java.net.InetAddress
-import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
 
 /**
@@ -20,13 +18,9 @@ class LanRepositoryTest {
 
     @org.junit.Test
     fun `repository has expected public API`() {
-        // Verify LanRepository has the expected public methods
         val methods = LanRepository::class.java.declaredMethods.map { it.name }
         assertTrue("Should have startServer", methods.contains("startServer"))
-        assertTrue("Should have stopServer", methods.contains("stopServer"))
-        assertTrue("Should have startDiscovery", methods.contains("startDiscovery"))
-        assertTrue("Should have stopDiscovery", methods.contains("stopDiscovery"))
-        assertTrue("Should have connectToPeer", methods.contains("connectToPeer"))
+        assertTrue("Should have connectServer", methods.contains("connectServer"))
         assertTrue("Should have disconnect", methods.contains("disconnect"))
         assertTrue("Should have sendMessage", methods.contains("sendMessage"))
         assertTrue("Should have close", methods.contains("close"))
@@ -36,7 +30,6 @@ class LanRepositoryTest {
     fun `repository has expected state flows`() {
         val fields = LanRepository::class.java.declaredFields.map { it.name }
         assertTrue("Should have connectionState flow", fields.contains("connectionState"))
-        assertTrue("Should have discoveredPeers flow", fields.contains("discoveredPeers"))
         assertTrue("Should have messages flow", fields.contains("messages"))
     }
 
@@ -64,11 +57,10 @@ class LanRepositoryTest {
 class LanRepositoryFactoryTest {
 
     @org.junit.Test
-    fun `repository accepts custom auth provider`() {
-        // Verify constructor accepts AuthProvider
+    fun `repository accepts PinConnectionService`() {
         val constructors = LanRepository::class.java.constructors
-        assertTrue("Should have constructor with 2 parameters", constructors.any {
-            it.parameterCount == 2
+        assertTrue("Should have constructor with 1 parameter", constructors.any {
+            it.parameterCount == 1
         })
     }
 }

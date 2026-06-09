@@ -78,7 +78,7 @@ class TcpSocketClientTest {
     fun `send throws IllegalStateException when not connected`() = runTest {
         val client = TcpSocketClient()
         try {
-            client.send("test".toByteArray())
+            client.send(0, "test".toByteArray())
             fail("Should throw IllegalStateException")
         } catch (e: IllegalStateException) {
             assertTrue(e.message?.contains("Not connected") ?: false)

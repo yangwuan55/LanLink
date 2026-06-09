@@ -128,7 +128,7 @@ class MainActivity : AppCompatActivity() {
         if (matchingStarted) return
         if (state !is ConnectionState.Idle) return
         matchingStarted = true
-        val repository = viewModel.startMatching()
+        val repository = viewModel.startMatching(isServerMode)
         LanForegroundService.start(this)
         bindService()
         lanService?.setRepository(repository)
