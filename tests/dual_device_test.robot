@@ -5,7 +5,7 @@ Library    OperatingSystem
 *** Variables ***
 ${DEVICE_SERVER}    1B221FDEE0033R
 ${DEVICE_CLIENT}    6dcede68
-${APP_PACKAGE}    com.example.lanchat
+${APP_PACKAGE}    com.ymr.lanlink
 
 *** Test Cases ***
 Dual Device Full Connection Test
@@ -45,14 +45,14 @@ Dual Device Full Connection Test
 
     # Server device - enter shared secret first
     Log    Entering shared secret on server device...
-    Input Text By Resource Id    ${DEVICE_SERVER}    com.example.lanchat:id/secret_key_input    123456
+    Input Text By Resource Id    ${DEVICE_SERVER}    com.ymr.lanlink:id/secret_key_input    123456
 
     # Wait for secret to be entered
     Sleep    1s
 
     # Server device - tap Start Server button by resource-id
     Log    Tapping Start Server on server device...
-    Tap Element By Id    ${DEVICE_SERVER}    com.example.lanchat:id/start_stop_button
+    Tap Element By Id    ${DEVICE_SERVER}    com.ymr.lanlink:id/start_stop_button
 
     # Wait for server to start broadcasting
     Sleep    3s
@@ -71,14 +71,14 @@ Dual Device Full Connection Test
 
     # Client device - enter shared secret
     Log    Entering shared secret on client device...
-    Input Text By Resource Id    ${DEVICE_CLIENT}    com.example.lanchat:id/secret_key_input    123456
+    Input Text By Resource Id    ${DEVICE_CLIENT}    com.ymr.lanlink:id/secret_key_input    123456
 
     # Wait for secret to be entered
     Sleep    1s
 
     # Client device - tap Start Discovery (same button id, different action based on tab)
     Log    Tapping Start Discovery on client device...
-    Tap Element By Id    ${DEVICE_CLIENT}    com.example.lanchat:id/start_stop_button
+    Tap Element By Id    ${DEVICE_CLIENT}    com.ymr.lanlink:id/start_stop_button
 
     # Wait for discovery with polling (UDP broadcasts every 2s, discovery may take time)
     Log    Waiting for UDP discovery...
@@ -209,9 +209,9 @@ Dual Device Auth Failure Test
 
     # Server device - enter CORRECT secret (123456)
     Log    Server entering correct secret...
-    Input Text By Resource Id    ${DEVICE_SERVER}    com.example.lanchat:id/secret_key_input    123456
+    Input Text By Resource Id    ${DEVICE_SERVER}    com.ymr.lanlink:id/secret_key_input    123456
     Sleep    1s
-    Tap Element By Id    ${DEVICE_SERVER}    com.example.lanchat:id/start_stop_button
+    Tap Element By Id    ${DEVICE_SERVER}    com.ymr.lanlink:id/start_stop_button
     Sleep    3s
 
     # Client device - select Client mode
@@ -221,9 +221,9 @@ Dual Device Auth Failure Test
 
     # Client device - enter WRONG secret (999999)
     Log    Client entering WRONG secret...
-    Input Text By Resource Id    ${DEVICE_CLIENT}    com.example.lanchat:id/secret_key_input    999999
+    Input Text By Resource Id    ${DEVICE_CLIENT}    com.ymr.lanlink:id/secret_key_input    999999
     Sleep    1s
-    Tap Element By Id    ${DEVICE_CLIENT}    com.example.lanchat:id/start_stop_button
+    Tap Element By Id    ${DEVICE_CLIENT}    com.ymr.lanlink:id/start_stop_button
     Sleep    5s
 
     # Wait for discovery
@@ -345,7 +345,7 @@ Get Element Bounds By Id
     ${xml}=    Run Process    adb    -s    ${device_id}    shell    cat    /sdcard/ui.xml    shell=True
     ${output}=    Set Variable    ${xml.stdout}
     # Parse bounds from the XML - find the element with the given resource-id
-    # Format: resource-id="com.example.lanchat:id/start_stop_button" ... bounds="[x1,y1][x2,y2]"
+    # Format: resource-id="com.ymr.lanlink:id/start_stop_button" ... bounds="[x1,y1][x2,y2]"
     ${match}=    Evaluate    re.search(r'resource-id="${resource_id}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"', """${output}""")    modules=re
     IF    ${match}
         ${x1}=    Convert To Integer    ${match.group(1)}

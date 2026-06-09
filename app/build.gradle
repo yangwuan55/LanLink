@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = 'com.example.lanchat'
+    namespace = 'com.ymr.lanlink'
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.example.lanchat"
+        applicationId "com.ymr.lanlink"
         minSdk 24
         targetSdk 35
         versionCode 1
@@ -33,8 +33,8 @@ android {
 }
 
 dependencies {
-    // lanchat-core
-    implementation project(':lanchat-core')
+    // lanlink-core
+    implementation project(':lanlink-core')
 
     // Android
     implementation 'androidx.core:core-ktx:1.12.0'
