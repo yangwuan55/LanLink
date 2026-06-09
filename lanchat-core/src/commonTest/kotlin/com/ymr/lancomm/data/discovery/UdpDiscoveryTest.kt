@@ -3,10 +3,11 @@ package com.ymr.lancomm.data.discovery
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
-import org.junit.Assert.*
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
-/** Waits (real time) for [predicate] to hold, since start() transitions state on a background Dispatchers.IO scope. */
+/** Waits (real time) for [predicate] to hold, since start() transitions state on a background coroutine. */
 private fun awaitState(timeoutMs: Long = 3_000, predicate: () -> Boolean): Boolean = runBlocking {
     withTimeoutOrNull(timeoutMs) {
         while (!predicate()) delay(20)
@@ -17,7 +18,7 @@ private fun awaitState(timeoutMs: Long = 3_000, predicate: () -> Boolean): Boole
 class UdpDiscoveryClientTest {
 
     @Test
-    fun `initial state is Idle`() {
+    fun initial_state_is_Idle() {
         // The implementation initializes _state to Idle (it only becomes
         // Stopped after stop()); pin that actual behavior.
         val client = UdpDiscoveryClient()
@@ -25,25 +26,25 @@ class UdpDiscoveryClientTest {
     }
 
     @Test
-    fun `discoveredPeers is empty initially`() {
+    fun discoveredPeers_is_empty_initially() {
         val client = UdpDiscoveryClient()
         assertTrue(client.discoveredPeers.value.isEmpty())
     }
 
     @Test
-    fun `start transitions state to Listening`() {
+    fun start_transitions_state_to_Listening() {
         val client = UdpDiscoveryClient()
         client.start()
         // start() binds the socket + flips state on a background coroutine.
         assertTrue(
-            "state should reach Listening",
-            awaitState { client.state.value == UdpDiscoveryState.Listening }
+            awaitState { client.state.value == UdpDiscoveryState.Listening },
+            "state should reach Listening"
         )
         client.stop()
     }
 
     @Test
-    fun `stop transitions state back to Stopped`() {
+    fun stop_transitions_state_back_to_Stopped() {
         val client = UdpDiscoveryClient()
         client.start()
         client.stop()
@@ -51,19 +52,19 @@ class UdpDiscoveryClientTest {
     }
 
     @Test
-    fun `start can be called multiple times safely`() {
+    fun start_can_be_called_multiple_times_safely() {
         val client = UdpDiscoveryClient()
         client.start()
         client.start()  // Should not throw
         assertTrue(
-            "state should reach Listening",
-            awaitState { client.state.value == UdpDiscoveryState.Listening }
+            awaitState { client.state.value == UdpDiscoveryState.Listening },
+            "state should reach Listening"
         )
         client.stop()
     }
 
     @Test
-    fun `stop can be called multiple times safely`() {
+    fun stop_can_be_called_multiple_times_safely() {
         val client = UdpDiscoveryClient()
         client.stop()
         client.stop()
@@ -72,7 +73,7 @@ class UdpDiscoveryClientTest {
     }
 
     @Test
-    fun `stop clears discovered peers`() {
+    fun stop_clears_discovered_peers() {
         val client = UdpDiscoveryClient()
         client.start()
         // Stop should clear peers
@@ -84,7 +85,7 @@ class UdpDiscoveryClientTest {
 class UdpDiscoveryServerTest {
 
     @Test
-    fun `initial state is Idle`() {
+    fun initial_state_is_Idle() {
         val server = UdpDiscoveryServer(
             servicePort = 0,  // Auto-select
             deviceName = "TestDevice"
@@ -93,7 +94,7 @@ class UdpDiscoveryServerTest {
     }
 
     @Test
-    fun `start and stop lifecycle`() {
+    fun start_and_stop_lifecycle() {
         val server = UdpDiscoveryServer(
             servicePort = 0,
             deviceName = "TestDevice"
@@ -102,11 +103,11 @@ class UdpDiscoveryServerTest {
         // start() flips to Broadcasting on a background coroutine (or Error if
         // the host JVM cannot bind the broadcast socket).
         assertTrue(
-            "state should reach Broadcasting or Error",
             awaitState {
                 val s = server.state.value
                 s == UdpDiscoveryState.Broadcasting || s is UdpDiscoveryState.Error
-            }
+            },
+            "state should reach Broadcasting or Error"
         )
         // The server's stop() resets to Idle (NOT Stopped) — pin actual behavior.
         server.stop()
@@ -114,7 +115,7 @@ class UdpDiscoveryServerTest {
     }
 
     @Test
-    fun `stop can be called when not started`() {
+    fun stop_can_be_called_when_not_started() {
         val server = UdpDiscoveryServer(
             servicePort = 0,
             deviceName = "TestDevice"
@@ -128,7 +129,7 @@ class UdpDiscoveryServerTest {
 class UdpDiscoveryModelsTest {
 
     @Test
-    fun `DiscoveredPeer can be created with required fields`() {
+    fun DiscoveredPeer_can_be_created_with_required_fields() {
         val peer = DiscoveredPeer(
             name = "TestDevice",
             host = "127.0.0.1",
@@ -139,7 +140,7 @@ class UdpDiscoveryModelsTest {
     }
 
     @Test
-    fun `UdpDiscoveryState has expected states`() {
+    fun UdpDiscoveryState_has_expected_states() {
         // sealed class (not enum) — reference each state to confirm it exists.
         val states: List<UdpDiscoveryState> = listOf(
             UdpDiscoveryState.Idle,
@@ -153,7 +154,7 @@ class UdpDiscoveryModelsTest {
     }
 
     @Test
-    fun `DiscoveredPeer equality works correctly`() {
+    fun DiscoveredPeer_equality_works_correctly() {
         val host = "127.0.0.1"
         val peer1 = DiscoveredPeer("Device1", host, 12345)
         val peer2 = DiscoveredPeer("Device1", host, 12345)
@@ -161,9 +162,9 @@ class UdpDiscoveryModelsTest {
     }
 
     @Test
-    fun `UdpDiscoveryState Error can be created with message`() {
-        val errorState = UdpDiscoveryState.Error("Network unavailable")
+    fun UdpDiscoveryState_Error_can_be_created_with_message() {
+        val errorState: UdpDiscoveryState = UdpDiscoveryState.Error("Network unavailable")
         assertTrue(errorState is UdpDiscoveryState.Error)
-        assertEquals("Network unavailable", errorState.message)
+        assertEquals("Network unavailable", (errorState as UdpDiscoveryState.Error).message)
     }
 }

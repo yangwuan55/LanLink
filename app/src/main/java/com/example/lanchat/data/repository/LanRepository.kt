@@ -1,8 +1,10 @@
 package com.example.lanchat.data.repository
 
 import android.util.Log
+import com.ymr.lancomm.data.proto.LanMessage
+import com.ymr.lancomm.data.proto.decodeLanMessage
+import com.ymr.lancomm.data.proto.encode
 import com.ymr.lancomm.domain.model.ConnectionState
-import com.ymr.lancomm.proto.LanMessage as ProtoLanMessage
 import com.ymr.lancomm.service.PinConnectionService
 import com.ymr.lancomm.service.PinConnectionState
 import kotlinx.coroutines.*
@@ -25,11 +27,11 @@ class LanRepository(private val service: PinConnectionService) {
         .stateIn(scope, SharingStarted.Eagerly, ConnectionState.Idle)
 
     // The service hands us (type, bytes); the app decides how to parse each type.
-    val messages: SharedFlow<ProtoLanMessage> = service.messageFlow
+    val messages: SharedFlow<LanMessage> = service.messageFlow
         .mapNotNull { typed ->
             when (typed.type) {
                 TYPE_CHAT -> try {
-                    ProtoLanMessage.parseFrom(typed.payload)
+                    decodeLanMessage(typed.payload)
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to parse chat message", e)
                     null
@@ -49,12 +51,12 @@ class LanRepository(private val service: PinConnectionService) {
     fun disconnect() = service.disconnect()
 
     suspend fun sendMessage(payload: String, type: Int = TYPE_CHAT) {
-        val message = ProtoLanMessage.newBuilder().apply {
-            id = java.util.UUID.randomUUID().toString()
-            timestamp = System.currentTimeMillis()
-            this.payload = com.google.protobuf.ByteString.copyFromUtf8(payload)
-        }.build()
-        service.send(type, message.toByteArray())
+        val message = LanMessage(
+            id = java.util.UUID.randomUUID().toString(),
+            timestamp = System.currentTimeMillis(),
+            payload = payload.encodeToByteArray()
+        )
+        service.send(type, message.encode())
     }
 
     fun close() {

@@ -16,3 +16,22 @@ actual val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
 actual fun secureRandomBytes(size: Int): ByteArray =
     ByteArray(size).also { secureRandom.nextBytes(it) }
+
+actual fun localIpv4Address(): String {
+    try {
+        val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+        while (interfaces.hasMoreElements()) {
+            val networkInterface = interfaces.nextElement()
+            val addresses = networkInterface.inetAddresses
+            while (addresses.hasMoreElements()) {
+                val address = addresses.nextElement()
+                if (!address.isLoopbackAddress && address is java.net.Inet4Address) {
+                    return address.hostAddress ?: "127.0.0.1"
+                }
+            }
+        }
+    } catch (_: Exception) {
+        // fall through to default
+    }
+    return "127.0.0.1"
+}

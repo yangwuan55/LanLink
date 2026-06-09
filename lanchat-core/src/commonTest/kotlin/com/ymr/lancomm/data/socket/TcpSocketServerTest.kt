@@ -2,48 +2,49 @@ package com.ymr.lancomm.data.socket
 
 import com.ymr.lancomm.data.auth.NoOpAuthProvider
 import com.ymr.lancomm.domain.model.ConnectionState
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.test.runTest
-import org.junit.Assert.*
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class TcpSocketServerTest {
 
     @Test
-    fun `initial state is Idle`() {
+    fun initial_state_is_Idle() {
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())
         assertEquals(ConnectionState.Idle, server.connectionState.value)
     }
 
     @Test
-    fun `connectedPeers is empty initially`() {
+    fun connectedPeers_is_empty_initially() {
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())
         assertTrue(server.connectedPeers.value.isEmpty())
     }
 
     @Test
-    fun `start returns a valid port number`() = runTest {
+    fun start_returns_a_valid_port_number() = runBlocking {
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())
         val port = server.start()
-        assertTrue("Port should be positive", port > 0)
-        assertTrue("Port should be less than 65536", port < 65536)
+        assertTrue(port > 0, "Port should be positive")
+        assertTrue(port < 65536, "Port should be less than 65536")
         server.stop()
     }
 
     @Test
-    fun `state transitions to Connected after start`() = runTest {
+    fun state_transitions_to_Connected_after_start() = runBlocking {
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())
         server.start()
         val state = server.connectionState.value
         assertTrue(
-            "State should be Connected, was: $state",
-            state is ConnectionState.Connected
+            state is ConnectionState.Connected,
+            "State should be Connected, was: $state"
         )
         server.stop()
     }
 
     @Test
-    fun `stop resets state to Idle`() = runTest {
+    fun stop_resets_state_to_Idle() = runBlocking {
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())
         server.start()
         server.stop()
@@ -51,7 +52,7 @@ class TcpSocketServerTest {
     }
 
     @Test
-    fun `stop can be called multiple times safely`() {
+    fun stop_can_be_called_multiple_times_safely() {
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())
         server.stop()
         server.stop()
@@ -61,13 +62,13 @@ class TcpSocketServerTest {
     }
 
     @Test
-    fun `broadcast throws when no clients connected`() = runTest {
+    fun broadcast_throws_when_no_clients_connected() = runBlocking {
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())
         server.start()
         // Current behavior: broadcast with no clients throws IllegalStateException.
         try {
             server.broadcast(0, "test".toByteArray())
-            fail("Should throw IllegalStateException")
+            error("Should throw IllegalStateException")
         } catch (e: IllegalStateException) {
             assertTrue(e.message?.contains("No clients connected") ?: false)
         }
@@ -75,13 +76,13 @@ class TcpSocketServerTest {
     }
 
     @Test
-    fun `send (alias for broadcast) throws when no clients connected`() = runTest {
+    fun send_alias_for_broadcast_throws_when_no_clients_connected() = runBlocking {
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())
         server.start()
         // send() delegates to broadcast(), which throws with no clients.
         try {
             server.send(0, "test".toByteArray())
-            fail("Should throw IllegalStateException")
+            error("Should throw IllegalStateException")
         } catch (e: IllegalStateException) {
             assertTrue(e.message?.contains("No clients connected") ?: false)
         }
@@ -89,7 +90,7 @@ class TcpSocketServerTest {
     }
 
     @Test
-    fun `sendToClient does nothing when client not found`() = runTest {
+    fun sendToClient_does_nothing_when_client_not_found() = runBlocking {
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())
         server.start()
         // Should not throw for non-existent client
@@ -98,7 +99,7 @@ class TcpSocketServerTest {
     }
 
     @Test
-    fun `constructor accepts custom timeout values`() {
+    fun constructor_accepts_custom_timeout_values() {
         val server = TcpSocketServer(
             authProvider = NoOpAuthProvider(),
             connectionTimeoutMs = 60_000,
@@ -108,7 +109,7 @@ class TcpSocketServerTest {
     }
 
     @Test
-    fun `messages flow is empty initially`() = runTest {
+    fun messages_flow_is_empty_initially() = runBlocking {
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())
         server.start()
         // messages is a hot SharedFlow that never completes; collect with a
@@ -122,7 +123,7 @@ class TcpSocketServerTest {
     }
 
     @Test
-    fun `start binds a new socket each call`() = runTest {
+    fun start_binds_a_new_socket_each_call() = runBlocking {
         // Current behavior: there is no double-start guard, so each start()
         // binds a fresh ServerSocket and returns a (different) ephemeral port.
         val server = TcpSocketServer(authProvider = NoOpAuthProvider())

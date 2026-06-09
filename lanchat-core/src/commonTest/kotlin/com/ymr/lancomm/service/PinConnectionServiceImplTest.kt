@@ -2,6 +2,7 @@ package com.ymr.lancomm.service
 
 import com.ymr.lancomm.data.discovery.DiscoveredPeer
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -42,7 +43,10 @@ class PinConnectionServiceImplTest {
         val service = PinConnectionServiceImpl(factory)
 
         val events = mutableListOf<PinConnectionEvent>()
-        val collector = launch { service.eventFlow.toList(events) }
+        // UNDISPATCHED so the collector subscribes to the replay=0 eventFlow before
+        // connectServer/startServer can emit, otherwise early events (e.g. AuthFailed)
+        // race ahead of subscription and are dropped (flaky under real dispatchers).
+        val collector = launch(start = CoroutineStart.UNDISPATCHED) { service.eventFlow.toList(events) }
 
         service.startServer(pin)
 
@@ -114,7 +118,10 @@ class PinConnectionServiceImplTest {
         val service = PinConnectionServiceImpl(factory)
 
         val events = mutableListOf<PinConnectionEvent>()
-        val collector = launch { service.eventFlow.toList(events) }
+        // UNDISPATCHED so the collector subscribes to the replay=0 eventFlow before
+        // connectServer/startServer can emit, otherwise early events (e.g. AuthFailed)
+        // race ahead of subscription and are dropped (flaky under real dispatchers).
+        val collector = launch(start = CoroutineStart.UNDISPATCHED) { service.eventFlow.toList(events) }
 
         service.connectServer(pin)
 
@@ -204,7 +211,10 @@ class PinConnectionServiceImplTest {
         val service = PinConnectionServiceImpl(factory)
 
         val events = mutableListOf<PinConnectionEvent>()
-        val collector = launch { service.eventFlow.toList(events) }
+        // UNDISPATCHED so the collector subscribes to the replay=0 eventFlow before
+        // connectServer/startServer can emit, otherwise early events (e.g. AuthFailed)
+        // race ahead of subscription and are dropped (flaky under real dispatchers).
+        val collector = launch(start = CoroutineStart.UNDISPATCHED) { service.eventFlow.toList(events) }
 
         service.connectServer(pin)
         val client = awaitNotNull { factory.client?.takeIf { it.readLoopStarted } }

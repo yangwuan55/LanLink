@@ -30,13 +30,6 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-    packaging {
-        resources {
-            // protobuf-lite jars ship *.proto descriptors as resources; exclude to
-            // avoid merge collisions when proto comes via the :lanchat-proto module.
-            excludes += ['**/*.proto']
-        }
-    }
 }
 
 dependencies {

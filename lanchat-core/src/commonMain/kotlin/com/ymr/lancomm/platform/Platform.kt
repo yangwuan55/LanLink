@@ -13,3 +13,9 @@ expect val ioDispatcher: CoroutineDispatcher
 
 /** Cryptographically-strong random bytes of the given [size]. */
 expect fun secureRandomBytes(size: Int): ByteArray
+
+/**
+ * Returns the first non-loopback IPv4 address of this device,
+ * or "127.0.0.1" if none can be determined.
+ */
+expect fun localIpv4Address(): String

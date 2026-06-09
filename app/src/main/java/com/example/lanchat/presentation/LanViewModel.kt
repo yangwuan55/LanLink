@@ -130,7 +130,7 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
                 val domainMessage = LanMessage(
                     id = protoMessage.id,
                     timestamp = protoMessage.timestamp,
-                    payload = protoMessage.payload.toStringUtf8()
+                    payload = protoMessage.payload.decodeToString()
                 )
                 _messages.update { msgs ->
                     val updated = msgs + domainMessage

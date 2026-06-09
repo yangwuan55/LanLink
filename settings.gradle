@@ -16,4 +16,3 @@ dependencyResolutionManagement {
 rootProject.name = "LanChat"
 include(":app")
 include(":lanchat-core")
-include(":lanchat-proto")

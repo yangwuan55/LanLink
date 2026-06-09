@@ -1,20 +1,28 @@
 package com.ymr.lancomm.data.discovery
 
-import android.util.Log
 import com.ymr.lancomm.net.DiscoveryScanner
-import kotlinx.coroutines.*
+import com.ymr.lancomm.platform.ioDispatcher
+import com.ymr.lancomm.platform.logger
+import io.ktor.network.selector.SelectorManager
+import io.ktor.network.sockets.InetSocketAddress
+import io.ktor.network.sockets.aSocket
+import kotlinx.io.readByteArray
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.net.DatagramPacket
-import java.net.DatagramSocket
-import java.net.InetSocketAddress
+import kotlinx.coroutines.launch
 
 class UdpDiscoveryClient(
     private val ignoredServicePorts: Set<Int> = emptySet()
 ) : DiscoveryScanner {
-    private var socket: DatagramSocket? = null
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    private var selector: SelectorManager? = null
+    private var socket: io.ktor.network.sockets.BoundDatagramSocket? = null
+    private val scope = CoroutineScope(ioDispatcher + SupervisorJob())
     private var isRunning = false
 
     private val _discoveredPeers = MutableStateFlow<List<DiscoveredPeer>>(emptyList())
@@ -25,7 +33,7 @@ class UdpDiscoveryClient(
 
     companion object {
         private const val TAG = "UdpDiscoveryClient"
-        private const val LISTEN_PORT = 45678  // Must match server's broadcast port
+        private const val LISTEN_PORT = 45678
         private const val MESSAGE_PREFIX = "LANCHAT_DISCOVER"
     }
 
@@ -35,32 +43,36 @@ class UdpDiscoveryClient(
 
         scope.launch {
             try {
-                socket = DatagramSocket(null).apply {
-                    reuseAddress = true
-                    bind(InetSocketAddress(LISTEN_PORT))
-                    setBroadcast(true)
-                }
+                val newSelector = SelectorManager(ioDispatcher)
+                selector = newSelector
+                val boundSocket = aSocket(newSelector).udp()
+                    .bind(InetSocketAddress("0.0.0.0", LISTEN_PORT)) {
+                        broadcast = true
+                        reuseAddress = true
+                    }
+                socket = boundSocket
                 _state.value = UdpDiscoveryState.Listening
-                Log.d(TAG, "UDP Discovery Client started on port $LISTEN_PORT")
+                logger.d(TAG, "UDP Discovery Client started on port $LISTEN_PORT")
 
-                val buffer = ByteArray(1024)
                 while (isRunning) {
-                    val packet = DatagramPacket(buffer, buffer.size)
-                    socket?.receive(packet)
-                    val message = String(packet.data, 0, packet.length)
-                    handleMessage(message, packet.address.hostAddress ?: "", packet.port)
+                    val datagram = boundSocket.receive()
+                    val message = datagram.packet.readByteArray().decodeToString()
+                    val fromHost = (datagram.address as? InetSocketAddress)?.hostname ?: ""
+                    handleMessage(message, fromHost)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 if (isRunning) {
-                    Log.e(TAG, "UDP Discovery Client error", e)
+                    logger.e(TAG, "UDP Discovery Client error", e)
                     _state.value = UdpDiscoveryState.Error(e.message ?: "Unknown error")
                 }
             }
         }
     }
 
-    private fun handleMessage(message: String, fromHost: String, fromPort: Int) {
-        Log.d(TAG, "Received message: $message from $fromHost:$fromPort")
+    private fun handleMessage(message: String, fromHost: String) {
+        logger.d(TAG, "Received message: $message from $fromHost")
         if (message.startsWith(MESSAGE_PREFIX)) {
             val parts = message.split("|")
             if (parts.size >= 4) {
@@ -68,11 +80,11 @@ class UdpDiscoveryClient(
                 val host = parts[2]
                 val port = parts[3].toIntOrNull() ?: return
                 if (port in ignoredServicePorts) {
-                    Log.d(TAG, "Ignoring local peer announcement on port $port")
+                    logger.d(TAG, "Ignoring local peer announcement on port $port")
                     return
                 }
 
-                Log.d(TAG, "Discovered peer: $name at $host:$port")
+                logger.d(TAG, "Discovered peer: $name at $host:$port")
 
                 val peer = DiscoveredPeer(name, host, port)
                 val current = _discoveredPeers.value.toMutableList()
@@ -86,10 +98,16 @@ class UdpDiscoveryClient(
     override fun stop() {
         isRunning = false
         scope.cancel()
-        socket?.close()
+        try {
+            socket?.close()
+        } catch (_: Exception) {}
         socket = null
+        try {
+            selector?.close()
+        } catch (_: Exception) {}
+        selector = null
         _state.value = UdpDiscoveryState.Stopped
         _discoveredPeers.value = emptyList()
-        Log.d(TAG, "UDP Discovery Client stopped")
+        logger.d(TAG, "UDP Discovery Client stopped")
     }
 }

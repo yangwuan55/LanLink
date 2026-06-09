@@ -1,6 +1,7 @@
 plugins {
     id 'org.jetbrains.kotlin.multiplatform'
     id 'com.android.kotlin.multiplatform.library'
+    id 'org.jetbrains.kotlin.plugin.serialization'
 }
 
 kotlin {
@@ -29,6 +30,8 @@ kotlin {
         commonMain {
             dependencies {
                 implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2'
+                implementation 'io.ktor:ktor-network:3.5.0'
+                implementation 'org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.11.0'
             }
         }
         commonTest {
@@ -40,11 +43,6 @@ kotlin {
         androidMain {
             dependencies {
                 implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
-                // Proto runtime + generated classes extracted to a non-KMP Android
-                // library module because protobuf-gradle-plugin cannot register against
-                // com.android.kotlin.multiplatform.library (see issue #497). Exported via
-                // api so :app keeps resolving com.ymr.lancomm.proto.* types.
-                api project(':lanchat-proto')
             }
         }
         androidHostTest {
