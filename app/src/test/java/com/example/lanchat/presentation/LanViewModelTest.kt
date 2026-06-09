@@ -1,14 +1,17 @@
 package com.example.lanchat.presentation
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.viewModelScope
 import com.example.lanchat.data.repository.LanRepository
-import com.ymr.lancomm.data.auth.NoOpAuthProvider
 import com.ymr.lancomm.domain.model.ConnectionState
 import com.ymr.lancomm.domain.model.LanMessage
 import com.ymr.lancomm.domain.model.PeerInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -18,7 +21,6 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import java.net.InetAddress
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LanViewModelTest {
@@ -107,7 +109,7 @@ class LanViewModelTest {
 
     @Test
     fun `discoveredPeers updates correctly`() = runTest {
-        val peer = PeerInfo("TestDevice", InetAddress.getLoopbackAddress(), 12345)
+        val peer = PeerInfo("TestDevice", "127.0.0.1", 12345)
         mockRepository._discoveredPeers.value = listOf(peer)
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -180,7 +182,7 @@ private abstract class LanViewModelForTest : androidx.lifecycle.ViewModel() {
     private val _discoveredPeers = MutableStateFlow<List<PeerInfo>>(emptyList())
     val discoveredPeers: kotlinx.coroutines.flow.StateFlow<List<PeerInfo>> = _discoveredPeers.asStateFlow()
 
-    private val _messages = MutableStateFlow<List<LanMessage>>(emptyList())
+    protected val _messages = MutableStateFlow<List<LanMessage>>(emptyList())
     val messages: kotlinx.coroutines.flow.StateFlow<List<LanMessage>> = _messages.asStateFlow()
 
     private val _sharedSecret = MutableStateFlow("")
@@ -190,12 +192,23 @@ private abstract class LanViewModelForTest : androidx.lifecycle.ViewModel() {
     val uiState: kotlinx.coroutines.flow.StateFlow<LanViewModel.UiState> = _uiState.asStateFlow()
 
     fun setRepositoryForTesting(repository: MockLanRepository) {
-        androidx.lifecycle.viewModelScope.launch {
+        this.repository = repository
+        viewModelScope.launch {
             repository.connectionState.collect { state ->
                 _connectionState.value = state
+                _uiState.value = _uiState.value.copy(
+                    statusMessage = when (state) {
+                        is ConnectionState.Idle -> "Ready"
+                        is ConnectionState.Discovering -> "Discovering..."
+                        is ConnectionState.Connecting -> "Connecting..."
+                        is ConnectionState.Connected -> "Connected to ${state.peerName}"
+                        is ConnectionState.Error -> "Error: ${state.message}"
+                    },
+                    errorMessage = if (state is ConnectionState.Error) state.message else null
+                )
             }
         }
-        androidx.lifecycle.viewModelScope.launch {
+        viewModelScope.launch {
             repository.discoveredPeers.collect { peers ->
                 _discoveredPeers.value = peers
             }
@@ -211,12 +224,12 @@ private abstract class LanViewModelForTest : androidx.lifecycle.ViewModel() {
     }
 
     fun sendMessage(payload: String) {
-        androidx.lifecycle.viewModelScope.launch {
+        viewModelScope.launch {
             repository?.sendMessage(payload)
         }
     }
 
-    private val repository: MockLanRepository? = null
+    private var repository: MockLanRepository? = null
 }
 
 // Mock repository for testing

@@ -4,7 +4,6 @@ import com.ymr.lancomm.domain.model.ConnectionState
 import com.ymr.lancomm.domain.model.PeerInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import java.net.InetAddress
 import java.nio.charset.StandardCharsets
 
 /**
@@ -35,15 +34,23 @@ class LanRepositoryTest {
 
     @org.junit.Test
     fun `ConnectionState enum has all expected states`() {
-        val states = ConnectionState::class.java.declaredMethods.map { it.name }
-        assertTrue("Should have Idle state", states.any { it == "getDeclaringClass" || ConnectionState.Idle::class.java.simpleName == "Idle" })
+        // Reference each state to confirm the sealed hierarchy is reachable.
+        val states: List<ConnectionState> = listOf(
+            ConnectionState.Idle,
+            ConnectionState.Discovering,
+            ConnectionState.Connecting,
+            ConnectionState.Connected("peer", isServer = false),
+            ConnectionState.Error("boom")
+        )
+        assertEquals(5, states.size)
+        assertTrue("Should have Idle state", states.any { it is ConnectionState.Idle })
     }
 
     @org.junit.Test
     fun `PeerInfo can be created with required fields`() {
         val peer = PeerInfo(
             name = "TestDevice",
-            host = InetAddress.getLoopbackAddress(),
+            host = "127.0.0.1",
             port = 12345
         )
         assertEquals("TestDevice", peer.name)
@@ -121,7 +128,7 @@ class PeerInfoTest {
 
     @org.junit.Test
     fun `PeerInfo equality works`() {
-        val addr = InetAddress.getLoopbackAddress()
+        val addr = "127.0.0.1"
         val peer1 = PeerInfo("Device", addr, 12345)
         val peer2 = PeerInfo("Device", addr, 12345)
         assertEquals(peer1, peer2)
@@ -129,7 +136,7 @@ class PeerInfoTest {
 
     @org.junit.Test
     fun `PeerInfo toString includes name`() {
-        val peer = PeerInfo("TestDevice", InetAddress.getLoopbackAddress(), 54321)
+        val peer = PeerInfo("TestDevice", "127.0.0.1", 54321)
         val str = peer.toString()
         assertTrue("toString should contain name", str.contains("TestDevice"))
     }

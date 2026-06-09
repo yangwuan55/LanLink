@@ -1,5 +1,6 @@
 package com.example.lanchat.domain.model
 
+import com.ymr.lancomm.domain.model.LanMessage
 import org.junit.Assert.*
 import org.junit.Test
 
