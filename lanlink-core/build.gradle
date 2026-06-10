@@ -9,7 +9,7 @@ plugins {
 // keeps local publishToMavenLocal output consistent with what JitPack builds.
 // JitPack overrides the version with the git tag at build time.
 group = 'com.github.yangwuan55'
-version = '0.1.0'
+version = '0.1.1'
 
 kotlin {
     androidLibrary {
@@ -24,6 +24,16 @@ kotlin {
             it.returnDefaultValues = true
         }
 
+        compilations.configureEach {
+            compileTaskProvider.configure {
+                compilerOptions {
+                    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+                }
+            }
+        }
+    }
+
+    jvm {
         compilations.configureEach {
             compileTaskProvider.configure {
                 compilerOptions {
@@ -50,6 +60,17 @@ kotlin {
         androidMain {
             dependencies {
                 implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+            }
+        }
+        jvmMain {
+            dependencies {
+                implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2'
+            }
+        }
+        jvmTest {
+            dependencies {
+                implementation kotlin('test')
+                implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2'
             }
         }
         androidHostTest {

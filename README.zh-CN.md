@@ -121,7 +121,7 @@ cd LanLink
 maven { url 'https://jitpack.io' }
 
 // app/build.gradle
-implementation 'com.github.yangwuan55.LanLink:lanlink-core:0.1.0'
+implementation 'com.github.yangwuan55.LanLink:lanlink-core:0.1.1'
 ```
 
 或作为本地模块：`include(":lanlink-core")` + `implementation project(':lanlink-core')`。
@@ -253,7 +253,7 @@ LanLink/
 - [ ] 通过新的 `LanNetworkFactory` 实现，新增更多 Kotlin Multiplatform target（桌面/JVM、iOS）
 - [ ] TLS / 加密传输
 - [ ] 在类型化通道之上提供文件与二进制负载的辅助工具
-- [x] 已发布到 JitPack（[`0.1.0`](https://jitpack.io/#yangwuan55/LanLink)）
+- [x] 已发布到 JitPack（[`0.1.1`](https://jitpack.io/#yangwuan55/LanLink)）
 
 ---
 
