@@ -12,6 +12,7 @@ import com.ymr.lanlink.core.net.LanServer
 import com.ymr.lanlink.core.platform.deviceName
 import com.ymr.lanlink.core.platform.ioDispatcher
 import com.ymr.lanlink.core.platform.logger
+import kotlin.concurrent.Volatile
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 

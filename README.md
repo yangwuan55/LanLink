@@ -121,7 +121,7 @@ From JitPack:
 maven { url 'https://jitpack.io' }
 
 // app/build.gradle
-implementation 'com.github.yangwuan55.LanLink:lanlink-core:0.1.1'
+implementation 'com.github.yangwuan55.LanLink:lanlink-core:0.1.2'
 ```
 
 Or as a local module: `include(":lanlink-core")` + `implementation project(':lanlink-core')`.
@@ -253,7 +253,7 @@ A two-device end-to-end scenario (PIN pairing, send/receive, wrong-PIN rejection
 - [ ] Additional Kotlin Multiplatform targets (desktop/JVM, iOS) via new `LanNetworkFactory` implementations
 - [ ] TLS / encrypted transport
 - [ ] File and binary payload helpers on top of the typed pipe
-- [x] Published to JitPack ([`0.1.1`](https://jitpack.io/#yangwuan55/LanLink))
+- [x] Published to JitPack ([`0.1.2`](https://jitpack.io/#yangwuan55/LanLink))
 
 ---
 

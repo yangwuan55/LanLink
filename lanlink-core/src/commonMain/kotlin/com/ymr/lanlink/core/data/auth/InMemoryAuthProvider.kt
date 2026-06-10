@@ -5,6 +5,8 @@ import com.ymr.lanlink.core.domain.auth.AuthResult
 import com.ymr.lanlink.core.platform.nowMillis
 import com.ymr.lanlink.core.platform.secureRandomBytes
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * In-memory auth provider with configurable PIN.
@@ -22,6 +24,10 @@ class InMemoryAuthProvider(
     private val lockoutDurationMs = 30_000L
     private val lockoutMap = mutableMapOf<String, Long>()
 
+    // Guards failedAttempts and lockoutMap. A coroutine Mutex (not JVM
+    // synchronized) so this compiles on all KMP targets.
+    private val stateMutex = Mutex()
+
     init {
         // Validate PIN format (6 digits)
         require(expectedPin.length == 6 && expectedPin.all { it.isDigit() }) {
@@ -32,7 +38,7 @@ class InMemoryAuthProvider(
 
     override suspend fun authenticate(peerName: String, credentials: ByteArray?): AuthResult {
         // Check lockout
-        synchronized(lockoutMap) {
+        stateMutex.withLock {
             lockoutMap[peerName]?.let { lockoutEnd ->
                 if (nowMillis() < lockoutEnd) {
                     val remainingMs = lockoutEnd - nowMillis()
@@ -48,24 +54,22 @@ class InMemoryAuthProvider(
         val pin = credentials?.decodeToString()
         return if (pin == expectedPin) {
             // Reset failed attempts on success
-            synchronized(failedAttempts) {
+            stateMutex.withLock {
                 failedAttempts.remove(peerName)
             }
             AuthResult.Success(peerName)
         } else {
             // Track failed attempts
-            val attempts: Int
-            synchronized(failedAttempts) {
-                attempts = (failedAttempts[peerName] ?: 0) + 1
-                failedAttempts[peerName] = attempts
+            val attempts = stateMutex.withLock {
+                val next = (failedAttempts[peerName] ?: 0) + 1
+                failedAttempts[peerName] = next
+                next
             }
 
             if (attempts >= maxAttempts) {
                 // Lock out the peer
-                synchronized(lockoutMap) {
+                stateMutex.withLock {
                     lockoutMap[peerName] = nowMillis() + lockoutDurationMs
-                }
-                synchronized(failedAttempts) {
                     failedAttempts.remove(peerName)
                 }
                 AuthResult.Failure("Too many failed attempts. Locked for ${lockoutDurationMs / 1000}s")
@@ -75,7 +79,7 @@ class InMemoryAuthProvider(
         }
     }
 
-    override fun getCredentials(): ByteArray? = expectedPin.toByteArray()
+    override fun getCredentials(): ByteArray? = expectedPin.encodeToByteArray()
 
     companion object {
         private fun generateSecureDefaultPin(): String {
