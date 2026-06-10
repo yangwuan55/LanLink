@@ -1,35 +1,30 @@
-# LanComm
+# lanlink-core
 
-A lightweight Android library for LAN (Local Area Network) device-to-device communication.
+A lightweight **Kotlin Multiplatform** library for LAN (local-network) device-to-device communication. It handles peer discovery, connection, authentication, and a typed message channel — so apps can build peer-to-peer features over Wi‑Fi without internet, accounts, or a backend.
 
-**LanComm** enables Android apps to quickly build peer-to-peer communication over WiFi without requiring internet connectivity.
+`lanlink-core` ships an **Android** target today; the transport sits behind a `LanNetworkFactory` seam so additional platforms are added by supplying a new factory, not by rewriting the protocol.
+
+> Looking for the full project, the reference chat app, and architecture overview? See the [repository README](../README.md).
 
 ## Features
 
-- **Device Discovery**: UDP broadcast + Android NSD (mDNS) support
-- **TCP Connections**: Persistent connections with auto-reconnect
-- **Pluggable Authentication**: Custom auth via `AuthProvider` interface
-- **Flexible Payloads**: ByteArray messages - use any serialization (Protobuf, JSON, binary)
-- **Kotlin Coroutines & Flow**: Modern async API
-- **Heartbeat & Timeout**: Built-in connection health monitoring
-- **Multi-client Support**: Server broadcasts to all connected clients
-- **Brute-force Protection**: Lockout after failed authentication attempts
+- **Device discovery** — UDP broadcast + Android NSD (mDNS)
+- **TCP transport** — Ktor-backed sockets with heartbeat and timeout handling
+- **PIN pairing** — connect two devices that share a 6‑digit code
+- **Pluggable authentication** — `AuthProvider` interface; built-in shared-secret provider with brute-force lockout
+- **Typed message pipe** — each frame carries a `type` tag + raw bytes, so one connection multiplexes many message kinds
+- **Coroutines & Flow** — `StateFlow`/`SharedFlow` for state, messages, and events
 
 ## Installation
 
-### Gradle (Kotlin DSL)
-
 ```groovy
-dependencies {
-    implementation(project(":lanlink-core"))
-}
-```
-
-### Requirements
-
-```groovy
-// settings.gradle.kts
+// settings.gradle
 include(":lanlink-core")
+
+// app/build.gradle
+dependencies {
+    implementation project(':lanlink-core')
+}
 ```
 
 ### Permissions (AndroidManifest.xml)
@@ -37,94 +32,126 @@ include(":lanlink-core")
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-<uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-<uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 ```
 
-> Note: `ACCESS_FINE_LOCATION` is required for WiFi device discovery on Android 10+.
+## Quick start
 
-## Quick Start
+### 1. Create the service
 
-### 1. Define Your Auth Provider
+`PinConnectionService` is the entry point. On Android, wire it with `AndroidLanNetworkFactory`, which supplies the Ktor TCP transport and UDP discovery:
 
 ```kotlin
-class MyAuthProvider : AuthProvider {
-    override suspend fun authenticate(peerName: String, credentials: ByteArray?): AuthResult {
-        // Verify credentials and return result
-        return AuthResult.Success(peerName)
+val service: PinConnectionService = PinConnectionServiceImpl(AndroidLanNetworkFactory())
+```
+
+### 2. Host or join with a PIN
+
+Both devices use the **same 6‑digit PIN**. One hosts, the other joins.
+
+```kotlin
+// Host
+service.startServer(pin = "123456")
+
+// Join (discovers and connects to the host)
+service.connectServer(pin = "123456")
+```
+
+### 3. Observe state, messages, and events
+
+```kotlin
+service.connectionState.collect { state ->
+    when (state) {
+        is PinConnectionState.Discovering -> { /* searching for peer */ }
+        is PinConnectionState.Connected   -> { /* state.peerName is connected */ }
+        is PinConnectionState.Error        -> { /* state.reason */ }
+        else -> Unit
     }
+}
 
-    override fun getCredentials(): ByteArray? {
-        // Return your credentials bytes
-        return myCredentials
+service.messageFlow.collect { frame: TypedMessage ->
+    if (frame.type == TYPE_CHAT) {
+        val text = frame.payload.decodeToString()
+    }
+}
+
+service.eventFlow.collect { event ->
+    when (event) {
+        is PinConnectionEvent.PeerConnected -> { /* event.peerName */ }
+        is PinConnectionEvent.PeerDisconnected -> Unit
+        is PinConnectionEvent.AuthFailed -> { /* event.reason */ }
     }
 }
 ```
 
-For shared secret authentication, use the built-in `InMemoryAuthProvider`:
+### 4. Send messages and clean up
 
 ```kotlin
-// 6-digit PIN (required format)
-val authProvider = InMemoryAuthProvider("123456")
+const val TYPE_CHAT = 0
 
-// Or generate random secure PIN
-val authProvider = InMemoryAuthProvider()  // Random 100000-999999
+// `type` travels on the wire so the receiver knows how to parse the bytes.
+service.send(type = TYPE_CHAT, data = "Hello!".encodeToByteArray())
+
+// When done
+service.disconnect()
 ```
 
-### 2. Set Up Discovery
+## API overview
+
+### `PinConnectionService`
+
+| Member | Description |
+|---|---|
+| `connectionState: StateFlow<PinConnectionState>` | Idle → Discovering → Connecting → Connected / Error |
+| `messageFlow: SharedFlow<TypedMessage>` | Inbound frames (`type` tag + raw `payload` bytes) |
+| `eventFlow: SharedFlow<PinConnectionEvent>` | Peer connected/disconnected, auth failed |
+| `startServer(pin: String)` | Host: open the TCP server and advertise it |
+| `connectServer(pin: String)` | Join: discover and connect to a host |
+| `send(type: Int, data: ByteArray)` | Send a typed frame to the peer |
+| `disconnect()` | Tear down the session |
+
+`PinConnectionServiceImpl` also accepts a `discoveryTimeoutMs` (default `30_000`).
+
+### Connection state & events
 
 ```kotlin
-val authProvider = MyAuthProvider()
-val repository = LanRepository(context, authProvider)
+sealed class PinConnectionState {
+    object Idle : PinConnectionState()
+    data class Discovering(val pin: String) : PinConnectionState()
+    data class Connecting(val pin: String, val isServer: Boolean) : PinConnectionState()
+    data class Connected(val pin: String, val isServer: Boolean, val peerName: String) : PinConnectionState()
+    data class Error(val pin: String?, val reason: String) : PinConnectionState()
+}
 
-// Discover peers
-repository.startDiscovery()
-repository.discoveredPeers.collect { peers ->
-    println("Found ${peers.size} peers")
+sealed class PinConnectionEvent {
+    data class PeerConnected(val peerName: String) : PinConnectionEvent()
+    object PeerDisconnected : PinConnectionEvent()
+    data class AuthFailed(val reason: String) : PinConnectionEvent()
 }
 ```
 
-### 3. Connect and Send Messages
+### The platform seam
+
+`commonMain` orchestration depends only on interfaces; the platform provides the transport:
 
 ```kotlin
-// Server mode (broadcasts to all clients)
-repository.startServer()
-
-// Client mode
-repository.connectToPeer(peer)
-
-repository.messages.collect { message ->
-    val payload = message.payload.toStringUtf8()
-    println("Received: $payload")
+interface LanNetworkFactory {
+    fun createServer(pin: String): LanServer
+    fun createClient(): LanClient
+    fun createAdvertiser(servicePort: Int): DiscoveryAdvertiser
+    fun createScanner(): DiscoveryScanner
 }
-
-// Send message
-repository.sendMessage("Hello!")
 ```
-
-### 4. Cleanup
-
-```kotlin
-// When done, release resources
-repository.close()
-```
-
-## API Overview
-
-### Core Components
 
 | Component | Description |
-|-----------|-------------|
-| `LanRepository` | Main entry point for all LAN communication |
-| `TcpSocketServer` | TCP server for accepting connections (multi-client) |
-| `TcpSocketClient` | TCP client for connecting to peers |
-| `UdpDiscoveryServer` | UDP broadcast server (advertises presence) |
-| `UdpDiscoveryClient` | UDP broadcast client (discovers peers) |
-| `NsdAdvertiser` | Android NSD service registration |
-| `NsdDiscoverer` | Android NSD service discovery |
+|---|---|
+| `TcpSocketServer` | Ktor TCP server, multi-client, heartbeat |
+| `TcpSocketClient` | Ktor TCP client |
+| `UdpDiscoveryServer` / `UdpDiscoveryClient` | UDP broadcast advertise / scan |
+| `NsdAdvertiser` / `NsdDiscoverer` | Android NSD (mDNS) advertise / discover |
+| `AndroidLanNetworkFactory` | Android wiring of all of the above |
 
-### Auth Interface
+## Authentication
 
 ```kotlin
 interface AuthProvider {
@@ -138,155 +165,54 @@ sealed class AuthResult {
 }
 ```
 
-### Built-in Auth Providers
+### Built-in providers
 
 | Provider | Description |
-|----------|-------------|
-| `NoOpAuthProvider` | Accepts all connections (testing only) |
-| `InMemoryAuthProvider` | 6-digit PIN with brute-force protection |
-
-### Flow APIs
+|---|---|
+| `InMemoryAuthProvider` | 6‑digit shared-secret PIN; 5 failed attempts → 30s lockout |
+| `NoOpAuthProvider` | Accepts every connection (tests only) |
 
 ```kotlin
-// Connection state
-val connectionState: StateFlow<ConnectionState>
-
-// Discovered peers (UDP discovery)
-val discoveredPeers: StateFlow<List<PeerInfo>>
-
-// Incoming messages
-val messages: SharedFlow<ByteArray>
+val auth = InMemoryAuthProvider("123456") // explicit PIN
+val auth = InMemoryAuthProvider()         // random secure 6-digit PIN
 ```
 
-### Connection State
-
-```kotlin
-sealed class ConnectionState {
-    object Idle : ConnectionState()
-    object Discovering : ConnectionState()
-    object Connecting : ConnectionState()
-    data class Connected(val peerName: String, val isServer: Boolean) : ConnectionState()
-    data class Error(val message: String) : ConnectionState()
-}
-```
-
-## Message Format
-
-Messages are sent as raw `ByteArray`. The library does not enforce any serialization format.
-
-```kotlin
-// Sending
-repository.sendMessage("Hello".toByteArray(UTF_8))
-
-// Receiving
-repository.messages.collect { bytes ->
-    val message = String(bytes, UTF_8)
-    // process message
-}
-```
-
-For Protobuf, use `com.google.protobuf` with custom_data fields in AuthRequest/AuthResponse.
-
-## Error Handling
-
-All network operations can throw exceptions. Wrap in try-catch:
-
-```kotlin
-try {
-    repository.sendMessage("Hello")
-} catch (e: Exception) {
-    println("Send failed: ${e.message}")
-}
-```
-
-### Common Errors
-
-| Error | Cause |
-|-------|-------|
-| `Connection failed: ...` | Cannot reach peer |
-| `Unknown host: ...` | Invalid IP/hostname |
-| `Account locked...` | Too many failed auth attempts |
+To use a custom provider, supply it through your own `LanNetworkFactory` (mirroring `AndroidLanNetworkFactory`).
 
 ## Configuration
 
-### TcpSocketServer
-
 ```kotlin
 TcpSocketServer(
-    port = 0,                    // Auto-select port
+    port = 0,                     // 0 = auto-select
     authProvider = authProvider,
-    connectionTimeoutMs = 30_000, // Heartbeat timeout
-    heartbeatIntervalMs = 15_000  // Heartbeat interval
+    connectionTimeoutMs = 30_000, // heartbeat timeout
+    heartbeatIntervalMs = 15_000
 )
-```
 
-### TcpSocketClient
-
-```kotlin
 TcpSocketClient(
-    connectionTimeoutMs = 10_000,  // TCP connect timeout
-    readTimeoutMs = 30_000,       // Socket read timeout
-    heartbeatIntervalMs = 15_000  // Heartbeat interval
+    connectionTimeoutMs = 10_000, // TCP connect timeout
+    readTimeoutMs = 30_000,       // socket read timeout
+    heartbeatIntervalMs = 15_000
 )
 ```
 
-### InMemoryAuthProvider
+## Wire format
 
-```kotlin
-InMemoryAuthProvider(
-    expectedPin = "123456"        // 6-digit PIN
-)
-// Brute-force protection: 5 attempts, then 30s lockout
-```
-
-## Architecture
-
-```
-app/
-├── presentation/
-│   ├── MainActivity.kt       # UI
-│   └── LanViewModel.kt       # Presentation logic
-├── data/
-│   └── repository/
-│       └── LanRepository.kt   # Facade for core library
-└── service/
-    └── LanForegroundService.kt
-
-lanlink-core/
-├── data/
-│   ├── socket/               # TCP client/server
-│   ├── discovery/            # UDP/NSD discovery
-│   └── auth/                  # Auth providers
-└── domain/
-    ├── model/                # Domain models
-    └── auth/                  # Auth interfaces
-```
+Frames are **length-delimited protobuf** messages (`kotlinx-serialization-protobuf`). The transport carries a `TypedMessage(type: Int, payload: ByteArray)` — the core never inspects the payload, so your app owns the encoding for each `type`.
 
 ## Testing
 
 ```bash
-# Unit tests (lanlink-core)
-./gradlew :lanlink-core:test
-
-# Unit tests (app)
-./gradlew :app:test
-
-# Android instrumented tests
-./gradlew :app:connectedAndroidTest
-
-# Robot Framework E2E tests
-./tests/run_test.sh
+# Unit tests run on the JVM, no device required
+./gradlew :lanlink-core:testAndroidHostTest
 ```
 
-## Security Considerations
+## Security
 
-> **WARNING**: Default PIN authentication sends credentials in plain text.
+> ⚠️ The default PIN handshake is **not encrypted** — credentials and messages travel in clear text over the LAN.
 
-For production use:
-- Implement TLS/SSL encryption
-- Use certificate-based authentication
-- Consider using a proper authentication library
+Built for trusted local networks. For untrusted environments, add a TLS/encrypted transport and consider certificate-based authentication; the `AuthProvider` seam is the intended extension point.
 
 ## License
 
-Apache 2.0
+Apache License 2.0 — see [LICENSE](../LICENSE).
