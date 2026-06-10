@@ -1,0 +1,4 @@
+jdk:
+  - openjdk17
+install:
+  - ./gradlew :lanlink-core:publishToMavenLocal -x test --no-daemon

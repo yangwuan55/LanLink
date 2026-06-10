@@ -2,7 +2,14 @@ plugins {
     id 'org.jetbrains.kotlin.multiplatform'
     id 'com.android.kotlin.multiplatform.library'
     id 'org.jetbrains.kotlin.plugin.serialization'
+    id 'maven-publish'
 }
+
+// JitPack serves artifacts under com.github.<user>; aligning the group here
+// keeps local publishToMavenLocal output consistent with what JitPack builds.
+// JitPack overrides the version with the git tag at build time.
+group = 'com.github.yangwuan55'
+version = '0.1.0'
 
 kotlin {
     androidLibrary {
