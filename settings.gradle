@@ -14,5 +14,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "LanLink"
-include(":app")
+include(":demo")
 include(":lanlink-core")
