@@ -101,8 +101,8 @@ The key design decision is the **`LanNetworkFactory` seam**. `commonMain` orches
 ### Try the demo
 
 ```bash
-git clone git@github.com:yangwuan55/LanConnector.git
-cd LanConnector
+git clone git@github.com:yangwuan55/LanLink.git
+cd LanLink
 
 # Build and install the demo on a connected device
 ./gradlew :demo:installDebug
@@ -114,17 +114,17 @@ Run the demo on both devices, enter the **same 6‑digit PIN**, tap **Host** on 
 
 ## Using `lanlink-core` as a library
 
-Add the module to your build and depend on it:
+From JitPack:
 
 ```groovy
-// settings.gradle
-include(":lanlink-core")
+// settings.gradle — repositories
+maven { url 'https://jitpack.io' }
 
 // app/build.gradle
-dependencies {
-    implementation project(':lanlink-core')
-}
+implementation 'com.github.yangwuan55.LanLink:lanlink-core:0.1.0'
 ```
+
+Or as a local module: `include(":lanlink-core")` + `implementation project(':lanlink-core')`.
 
 Declare the permissions discovery and sockets need:
 
@@ -253,7 +253,7 @@ A two-device end-to-end scenario (PIN pairing, send/receive, wrong-PIN rejection
 - [ ] Additional Kotlin Multiplatform targets (desktop/JVM, iOS) via new `LanNetworkFactory` implementations
 - [ ] TLS / encrypted transport
 - [ ] File and binary payload helpers on top of the typed pipe
-- [ ] Published Maven artifact for `lanlink-core`
+- [x] Published to JitPack ([`0.1.0`](https://jitpack.io/#yangwuan55/LanLink))
 
 ---
 

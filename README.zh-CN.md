@@ -101,8 +101,8 @@ sequenceDiagram
 ### 试用 demo
 
 ```bash
-git clone git@github.com:yangwuan55/LanConnector.git
-cd LanConnector
+git clone git@github.com:yangwuan55/LanLink.git
+cd LanLink
 
 # 构建并安装 demo 到已连接的设备
 ./gradlew :demo:installDebug
@@ -114,17 +114,17 @@ cd LanConnector
 
 ## 将 `lanlink-core` 作为库使用
 
-把模块加入构建并依赖它：
+从 JitPack 引入：
 
 ```groovy
-// settings.gradle
-include(":lanlink-core")
+// settings.gradle —— repositories
+maven { url 'https://jitpack.io' }
 
 // app/build.gradle
-dependencies {
-    implementation project(':lanlink-core')
-}
+implementation 'com.github.yangwuan55.LanLink:lanlink-core:0.1.0'
 ```
+
+或作为本地模块：`include(":lanlink-core")` + `implementation project(':lanlink-core')`。
 
 声明发现与套接字所需的权限：
 
@@ -253,7 +253,7 @@ LanLink/
 - [ ] 通过新的 `LanNetworkFactory` 实现，新增更多 Kotlin Multiplatform target（桌面/JVM、iOS）
 - [ ] TLS / 加密传输
 - [ ] 在类型化通道之上提供文件与二进制负载的辅助工具
-- [ ] 为 `lanlink-core` 发布 Maven 制品
+- [x] 已发布到 JitPack（[`0.1.0`](https://jitpack.io/#yangwuan55/LanLink)）
 
 ---
 
