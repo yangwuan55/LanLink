@@ -6,8 +6,20 @@ package com.ymr.lanlink.core.net
  * factory; [commonMain] orchestration depends only on the interfaces above.
  */
 interface LanNetworkFactory {
-    /** Creates a server that authenticates clients against the 6-digit [pin]. */
-    fun createServer(pin: String): LanServer
+    /**
+     * Creates a server with the PIN pairing window initially closed. The server
+     * always accepts token (authScheme=1) reconnects from already-paired clients
+     * against [pairingRegistry]; PIN pairing (authScheme=0) is rejected until the
+     * caller opens a window via [LanServer.setPairingPin]. On a successful PIN
+     * handshake the server mints a pairing record into the registry and ships it
+     * to the client. [serverDeviceId]/[serverName] are embedded in the issued
+     * credential for the client to display/match.
+     */
+    fun createServer(
+        pairingRegistry: com.ymr.lanlink.core.domain.pairing.PairingRegistry,
+        serverDeviceId: String = "",
+        serverName: String = "",
+    ): LanServer
 
     /** Creates a client transport. */
     fun createClient(): LanClient

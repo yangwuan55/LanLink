@@ -7,5 +7,10 @@ package com.ymr.lanlink.core.net
  */
 data class AuthHandshakeResult(
     val success: Boolean,
-    val message: String
+    val message: String,
+    /**
+     * Server-supplied `AuthResponse.customData` bytes (e.g. the minted pairing
+     * record on first PIN handshake). Null when the server returned none.
+     */
+    val customData: ByteArray? = null,
 )

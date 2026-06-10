@@ -5,6 +5,7 @@ import com.ymr.lanlink.core.data.proto.LanMessage
 import com.ymr.lanlink.core.data.proto.decodeLanMessage
 import com.ymr.lanlink.core.data.proto.encode
 import com.ymr.lanlink.core.domain.model.ConnectionState
+import com.ymr.lanlink.core.service.PinConnectionEvent
 import com.ymr.lanlink.core.service.PinConnectionService
 import com.ymr.lanlink.core.service.PinConnectionState
 import kotlinx.coroutines.*
@@ -44,9 +45,22 @@ class LanRepository(private val service: PinConnectionService) {
         }
         .shareIn(scope, SharingStarted.Eagerly, replay = 0)
 
-    fun startServer(pin: String) = service.startServer(pin)
+    /** Pairing credential events forwarded from the service's eventFlow. */
+    val events: SharedFlow<PinConnectionEvent> = service.eventFlow
+        .shareIn(scope, SharingStarted.Eagerly, replay = 0)
 
-    fun connectServer(pin: String) = service.connectServer(pin)
+    /** Whether the server PIN pairing window is currently open. */
+    val pairingActive: StateFlow<Boolean> = service.pairingActive
+
+    fun startServer() = service.startServer()
+
+    fun startPairing(pin: String) = service.startPairing(pin)
+
+    fun stopPairing() = service.stopPairing()
+
+    fun pairWithServer(pin: String) = service.pairWithServer(pin)
+
+    fun reconnectLastServer() = service.reconnectLastServer()
 
     fun disconnect() = service.disconnect()
 

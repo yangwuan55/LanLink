@@ -58,6 +58,72 @@ class WireFormatTest {
         assertEquals(msg.peerName, back.peerName)
     }
 
+    @Test
+    fun authRequest_authScheme_roundTrip_and_default() {
+        val token = AuthRequest(deviceName = "c", authScheme = 1, customData = byteArrayOf(5, 6))
+        val back = decodeAuthRequest(token.encode())
+        assertEquals(1, back.authScheme)
+        assertContentEquals(byteArrayOf(5, 6), back.customData)
+        // authScheme defaults to 0 (PIN) when absent on the wire (backward compat).
+        assertEquals(0, decodeAuthRequest(AuthRequest(deviceName = "x").encode()).authScheme)
+    }
+
+    @Test
+    fun issuedPairing_roundTrip() {
+        val msg = IssuedPairing(
+            pairingId = "pid-1",
+            secret = ByteArray(32) { it.toByte() },
+            serverDeviceId = "srv-夹",
+            serverName = "Server-名",
+        )
+        val back = decodeIssuedPairing(msg.encode())
+        assertEquals(msg.pairingId, back.pairingId)
+        assertContentEquals(msg.secret, back.secret)
+        assertEquals(msg.serverDeviceId, back.serverDeviceId)
+        assertEquals(msg.serverName, back.serverName)
+    }
+
+    @Test
+    fun pairingCredential_roundTrip() {
+        val msg = PairingCredential(
+            version = 1,
+            scheme = "hmac-sha256-v1",
+            pairingId = "pid-2",
+            secret = ByteArray(32) { (it * 3).toByte() },
+            serverDeviceId = "dev",
+            serverName = "Srv",
+            lastHost = "192.168.1.7",
+            lastPort = 5555,
+            pairedAt = 1_700_000_000_000L,
+        )
+        val back = decodePairingCredential(msg.encode())
+        assertEquals(msg.version, back.version)
+        assertEquals(msg.scheme, back.scheme)
+        assertEquals(msg.pairingId, back.pairingId)
+        assertContentEquals(msg.secret, back.secret)
+        assertEquals(msg.serverDeviceId, back.serverDeviceId)
+        assertEquals(msg.serverName, back.serverName)
+        assertEquals(msg.lastHost, back.lastHost)
+        assertEquals(msg.lastPort, back.lastPort)
+        assertEquals(msg.pairedAt, back.pairedAt)
+    }
+
+    @Test
+    fun tokenMessages_roundTrip() {
+        val hello = TokenHello(pairingId = "pid", clientNonce = ByteArray(16) { 1 })
+        val helloBack = decodeTokenHello(hello.encode())
+        assertEquals(hello.pairingId, helloBack.pairingId)
+        assertContentEquals(hello.clientNonce, helloBack.clientNonce)
+
+        val challenge = TokenChallenge(serverNonce = ByteArray(16) { 2 }, serverProof = ByteArray(32) { 3 })
+        val challengeBack = decodeTokenChallenge(challenge.encode())
+        assertContentEquals(challenge.serverNonce, challengeBack.serverNonce)
+        assertContentEquals(challenge.serverProof, challengeBack.serverProof)
+
+        val proof = TokenProof(clientProof = ByteArray(32) { 4 })
+        assertContentEquals(proof.clientProof, decodeTokenProof(proof.encode()).clientProof)
+    }
+
     // endregion
 
     // region golden vectors: decode standard protobuf wire bytes (field-order independent)

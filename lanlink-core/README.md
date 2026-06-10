@@ -50,11 +50,12 @@ val service: PinConnectionService = PinConnectionServiceImpl(AndroidLanNetworkFa
 Both devices use the **same 6‑digit PIN**. One hosts, the other joins.
 
 ```kotlin
-// Host
-service.startServer(pin = "123456")
+// Host: start the server, then open a PIN pairing window
+service.startServer()
+service.startPairing(pin = "123456")
 
-// Join (discovers and connects to the host)
-service.connectServer(pin = "123456")
+// Join (discovers, connects, and PIN-pairs with the host)
+service.pairWithServer(pin = "123456")
 ```
 
 ### 3. Observe state, messages, and events
@@ -105,8 +106,12 @@ service.disconnect()
 | `connectionState: StateFlow<PinConnectionState>` | Idle → Discovering → Connecting → Connected / Error |
 | `messageFlow: SharedFlow<TypedMessage>` | Inbound frames (`type` tag + raw `payload` bytes) |
 | `eventFlow: SharedFlow<PinConnectionEvent>` | Peer connected/disconnected, auth failed |
-| `startServer(pin: String)` | Host: open the TCP server and advertise it |
-| `connectServer(pin: String)` | Join: discover and connect to a host |
+| `pairingActive: StateFlow<Boolean>` | Whether the server PIN pairing window is open |
+| `startServer()` | Host: open the TCP server + advertise; accept token reconnects |
+| `startPairing(pin: String)` | Host: open the PIN pairing window (after `startServer()`) |
+| `stopPairing()` | Host: close the PIN pairing window |
+| `pairWithServer(pin: String)` | Join: first-time PIN pairing |
+| `reconnectLastServer()` | Join: reconnect to the last paired server, no PIN |
 | `send(type: Int, data: ByteArray)` | Send a typed frame to the peer |
 | `disconnect()` | Tear down the session |
 
@@ -136,7 +141,11 @@ sealed class PinConnectionEvent {
 
 ```kotlin
 interface LanNetworkFactory {
-    fun createServer(pin: String): LanServer
+    fun createServer(
+        pairingRegistry: PairingRegistry,
+        serverDeviceId: String = "",
+        serverName: String = "",
+    ): LanServer
     fun createClient(): LanClient
     fun createAdvertiser(servicePort: Int): DiscoveryAdvertiser
     fun createScanner(): DiscoveryScanner

@@ -1,9 +1,17 @@
 package com.ymr.lanlink.core.data.socket
 
+import com.ymr.lanlink.core.crypto.TokenProofs
+import com.ymr.lanlink.core.crypto.constantTimeEquals
+import com.ymr.lanlink.core.data.auth.InMemoryAuthProvider
+import com.ymr.lanlink.core.data.proto.AuthProtocol
 import com.ymr.lanlink.core.data.proto.AuthResponse
+import com.ymr.lanlink.core.data.proto.IssuedPairing
 import com.ymr.lanlink.core.data.proto.LanMessage
+import com.ymr.lanlink.core.data.proto.TokenChallenge
 import com.ymr.lanlink.core.data.proto.decodeAuthRequest
 import com.ymr.lanlink.core.data.proto.decodeLanMessage
+import com.ymr.lanlink.core.data.proto.decodeTokenHello
+import com.ymr.lanlink.core.data.proto.decodeTokenProof
 import com.ymr.lanlink.core.data.proto.encode
 import com.ymr.lanlink.core.data.proto.readDelimited
 import com.ymr.lanlink.core.data.proto.writeDelimited
@@ -11,10 +19,14 @@ import com.ymr.lanlink.core.domain.auth.AuthProvider
 import com.ymr.lanlink.core.domain.auth.AuthResult
 import com.ymr.lanlink.core.domain.model.ConnectionState
 import com.ymr.lanlink.core.domain.model.PeerInfo
+import com.ymr.lanlink.core.domain.pairing.PairingRecord
+import com.ymr.lanlink.core.domain.pairing.PairingRegistry
 import com.ymr.lanlink.core.net.LanServer
 import com.ymr.lanlink.core.platform.ioDispatcher
 import com.ymr.lanlink.core.platform.logger
 import com.ymr.lanlink.core.platform.nowMillis
+import com.ymr.lanlink.core.platform.secureRandomBytes
+import io.ktor.utils.io.ByteReadChannel
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.InetSocketAddress
 import io.ktor.network.sockets.ServerSocket
@@ -27,6 +39,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -42,7 +55,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.io.IOException
+import kotlin.concurrent.Volatile
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -55,13 +70,46 @@ import kotlin.uuid.Uuid
  */
 class TcpSocketServer(
     private val port: Int = 0,
-    private val authProvider: AuthProvider,
+    // Initial PIN pairing-window provider. null = window closed (authScheme=0 is
+    // rejected); non-null = window open and PIN handshakes are validated against
+    // it. Swap at runtime via [setPairingPin]. ALL reads/writes go through the
+    // @Volatile [authProvider] field below so a closed/opened window is observed
+    // by in-flight handler coroutines.
+    authProvider: AuthProvider? = null,
     private val connectionTimeoutMs: Long = 30_000,
-    private val heartbeatIntervalMs: Long = 15_000
+    private val heartbeatIntervalMs: Long = 15_000,
+    // Credential direct-connect support. When null the server only speaks the
+    // legacy PIN path (authScheme=0) and never mints credentials, preserving the
+    // original behavior. When supplied, a successful PIN handshake mints a
+    // PairingRecord and token (authScheme=1) reconnects are accepted.
+    private val pairingRegistry: PairingRegistry? = null,
+    private val serverDeviceId: String = "",
+    private val serverName: String = "",
+    // Bounds each blocking read during the token handshake so a client that
+    // sends a valid TokenHello then goes silent cannot pin a handler coroutine +
+    // socket open indefinitely (review MAJOR-2). PIN path does not read a second
+    // frame so it is unaffected.
+    private val handshakeTimeoutMs: Long = 5_000,
 ) : LanServer {
     private var selector: SelectorManager? = null
     private var serverSocket: ServerSocket? = null
     private val scope = CoroutineScope(ioDispatcher + SupervisorJob())
+
+    // The live PIN pairing-window provider. null = window closed. Volatile so a
+    // setPairingPin() on one coroutine is seen by handler coroutines reading it
+    // during a handshake.
+    @Volatile
+    private var authProvider: AuthProvider? = authProvider
+
+    override fun setPairingPin(pin: String?) {
+        // Each open rebuilds the provider so brute-force lockout state from a prior
+        // window does not carry over (plan §3). Deliberate trade-off: lockout
+        // guards online brute-force of a FIXED pin, but every window carries a
+        // fresh pin, so resetting the counter does not help an attacker — closing
+        // and reopening the window rotates the secret they would be guessing.
+        authProvider = pin?.let { InMemoryAuthProvider(it) }
+        logger.d(TAG, "Pairing window ${if (pin != null) "opened" else "closed"}")
+    }
 
     // Track connected clients keyed by a single stable clientId (the ktor
     // remoteAddress string). ALL map access is guarded by [clientsMutex].
@@ -191,24 +239,17 @@ class TcpSocketServer(
 
             // Auth handshake - receive AuthRequest
             val authRequest = decodeAuthRequest(read.readDelimited())
-            logger.d(TAG, "Received AuthRequest from $clientId: deviceName=${authRequest.deviceName}")
+            logger.d(TAG, "Received AuthRequest from $clientId: deviceName=${authRequest.deviceName}, scheme=${authRequest.authScheme}")
 
-            // Authenticate
-            val authResult = authProvider.authenticate(
-                authRequest.deviceName,
-                authRequest.credentials
-            )
-
-            // Send AuthResponse
-            val authResponse = when (authResult) {
-                is AuthResult.Success -> AuthResponse(success = true, message = "OK")
-                is AuthResult.Failure -> AuthResponse(success = false, message = authResult.message)
+            val authOk = if (authRequest.authScheme == AuthProtocol.AUTH_SCHEME_TOKEN) {
+                handleTokenHandshake(authRequest, read, write, clientId, socket)
+            } else {
+                handlePinHandshake(authRequest, write, clientId)
             }
-            write.writeDelimited(authResponse.encode())
 
-            // If authentication failed, close connection immediately
-            if (authResult is AuthResult.Failure) {
-                logger.w(TAG, "Authentication failed for $clientId: ${authResult.message}")
+            // If authentication failed, the branch already sent its AuthResponse
+            // and we close immediately.
+            if (!authOk) {
                 socket.close()
                 return@withContext
             }
@@ -254,6 +295,119 @@ class TcpSocketServer(
         } finally {
             disconnectClient(clientId)
         }
+    }
+
+    /**
+     * Legacy PIN path (authScheme=0). On success, mints + persists a
+     * [PairingRecord] when a [pairingRegistry] is configured and ships it back in
+     * [AuthResponse.customData] as an [IssuedPairing]. Returns true if authenticated.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    private suspend fun handlePinHandshake(
+        authRequest: com.ymr.lanlink.core.data.proto.AuthRequest,
+        write: ByteWriteChannel,
+        clientId: String,
+    ): Boolean {
+        // Pairing window closed: reject every PIN handshake. Token reconnects
+        // (authScheme=1) reach handleTokenHandshake instead and are unaffected.
+        val provider = authProvider
+        if (provider == null) {
+            write.writeDelimited(AuthResponse(success = false, message = AuthProtocol.REASON_PAIRING_CLOSED).encode())
+            logger.w(TAG, "PIN handshake rejected for $clientId: pairing window closed")
+            return false
+        }
+
+        val authResult = provider.authenticate(authRequest.deviceName, authRequest.credentials)
+
+        if (authResult is AuthResult.Failure) {
+            write.writeDelimited(AuthResponse(success = false, message = authResult.message).encode())
+            logger.w(TAG, "Authentication failed for $clientId: ${authResult.message}")
+            return false
+        }
+
+        // Mint a pairing credential when issuance is enabled.
+        var customData = ByteArray(0)
+        val registry = pairingRegistry
+        if (registry != null) {
+            val pairingId = Uuid.random().toString()
+            val secret = secureRandomBytes(AuthProtocol.SECRET_BYTES)
+            val now = nowMillis()
+            registry.save(
+                PairingRecord(
+                    pairingId = pairingId,
+                    secret = secret,
+                    clientDeviceName = authRequest.deviceName,
+                    pairedAt = now,
+                    lastSeenAt = now,
+                )
+            )
+            customData = IssuedPairing(
+                pairingId = pairingId,
+                secret = secret,
+                serverDeviceId = serverDeviceId,
+                serverName = serverName,
+            ).encode()
+            logger.d(TAG, "Issued pairing $pairingId to $clientId")
+        }
+
+        write.writeDelimited(AuthResponse(success = true, message = AuthProtocol.MESSAGE_OK, customData = customData).encode())
+        return true
+    }
+
+    /**
+     * Credential direct-connect path (authScheme=1): the HMAC-SHA256
+     * challenge-response state machine (plan 3.4). Returns true once the client
+     * proof verifies. All proof comparisons are constant-time.
+     */
+    private suspend fun handleTokenHandshake(
+        authRequest: com.ymr.lanlink.core.data.proto.AuthRequest,
+        read: ByteReadChannel,
+        write: ByteWriteChannel,
+        clientId: String,
+        socket: Socket,
+    ): Boolean {
+        val registry = pairingRegistry
+        if (registry == null) {
+            write.writeDelimited(AuthResponse(success = false, message = AuthProtocol.REASON_PAIRING_REVOKED).encode())
+            return false
+        }
+
+        val hello = decodeTokenHello(authRequest.customData)
+        val record = registry.find(hello.pairingId)
+        if (record == null) {
+            logger.w(TAG, "Unknown pairingId ${hello.pairingId} from $clientId")
+            write.writeDelimited(AuthResponse(success = false, message = AuthProtocol.REASON_PAIRING_REVOKED).encode())
+            return false
+        }
+
+        val serverNonce = secureRandomBytes(AuthProtocol.NONCE_BYTES)
+        val serverProof = TokenProofs.serverProof(record.secret, hello.clientNonce, serverNonce)
+        val challenge = TokenChallenge(serverNonce = serverNonce, serverProof = serverProof)
+        write.writeDelimited(
+            AuthResponse(success = true, message = AuthProtocol.MESSAGE_CHALLENGE, customData = challenge.encode()).encode()
+        )
+
+        // Await the client proof under a bounded timeout so a half-open client
+        // that goes silent after the challenge cannot pin this coroutine + socket
+        // indefinitely (review MAJOR-2).
+        val proofFrame = try {
+            withTimeout(handshakeTimeoutMs) { decodeTokenProof(read.readDelimited()) }
+        } catch (e: TimeoutCancellationException) {
+            logger.w(TAG, "Token handshake timeout awaiting client proof for ${hello.pairingId} ($clientId)")
+            try { socket.close() } catch (_: Exception) {}
+            return false
+        }
+        val expected = TokenProofs.clientProof(record.secret, serverNonce, hello.clientNonce)
+        if (!constantTimeEquals(proofFrame.clientProof, expected)) {
+            logger.w(TAG, "Invalid client proof for ${hello.pairingId} from $clientId")
+            write.writeDelimited(AuthResponse(success = false, message = AuthProtocol.REASON_INVALID_PROOF).encode())
+            return false
+        }
+
+        registry.save(record.copy(lastSeenAt = nowMillis()))
+        write.writeDelimited(AuthResponse(success = true, message = AuthProtocol.MESSAGE_OK).encode())
+        logger.d(TAG, "Token handshake OK for ${hello.pairingId} ($clientId)")
+        return true
     }
 
     private suspend fun disconnectClient(clientId: String) {

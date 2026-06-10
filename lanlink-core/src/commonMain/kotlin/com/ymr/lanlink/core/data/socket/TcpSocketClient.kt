@@ -1,12 +1,19 @@
 package com.ymr.lanlink.core.data.socket
 
+import com.ymr.lanlink.core.crypto.TokenProofs
+import com.ymr.lanlink.core.crypto.constantTimeEquals
+import com.ymr.lanlink.core.data.proto.AuthProtocol
 import com.ymr.lanlink.core.data.proto.AuthRequest
 import com.ymr.lanlink.core.data.proto.LanMessage
+import com.ymr.lanlink.core.data.proto.TokenHello
+import com.ymr.lanlink.core.data.proto.TokenProof
 import com.ymr.lanlink.core.data.proto.decodeAuthResponse
 import com.ymr.lanlink.core.data.proto.decodeLanMessage
+import com.ymr.lanlink.core.data.proto.decodeTokenChallenge
 import com.ymr.lanlink.core.data.proto.encode
 import com.ymr.lanlink.core.data.proto.readDelimited
 import com.ymr.lanlink.core.data.proto.writeDelimited
+import com.ymr.lanlink.core.platform.secureRandomBytes
 import com.ymr.lanlink.core.domain.model.ConnectionState
 import com.ymr.lanlink.core.domain.model.PeerInfo
 import com.ymr.lanlink.core.net.AuthHandshakeResult
@@ -53,7 +60,11 @@ import kotlin.uuid.Uuid
 class TcpSocketClient(
     private val connectionTimeoutMs: Long = 10_000,
     private val readTimeoutMs: Long = 30_000,
-    private val heartbeatIntervalMs: Long = 15_000
+    private val heartbeatIntervalMs: Long = 15_000,
+    // Bounds each blocking read during the credential handshake so a stalled or
+    // misbehaving server cannot hang authenticateWithCredential forever
+    // (review MAJOR-2).
+    private val handshakeTimeoutMs: Long = 5_000,
 ) : LanClient {
     private var selector: SelectorManager? = null
     private var socket: Socket? = null
@@ -135,8 +146,66 @@ class TcpSocketClient(
             write.writeDelimited(request.encode())
             val response = decodeAuthResponse(read.readDelimited())
             logger.d(TAG, "Auth response: success=${response.success}")
-            AuthHandshakeResult(response.success, response.message)
+            AuthHandshakeResult(
+                response.success,
+                response.message,
+                customData = response.customData.takeIf { it.isNotEmpty() },
+            )
         }
+
+    /**
+     * Credential direct-connect handshake (plan 3.4): sends TokenHello, verifies
+     * the server proof in constant time (aborting WITHOUT sending a client proof
+     * if it fails — defends against a spoofed server), then sends the client
+     * proof. [pairingId] and [secret] come from the stored credential.
+     */
+    override suspend fun authenticateWithCredential(
+        deviceName: String,
+        pairingId: String,
+        secret: ByteArray,
+    ): AuthHandshakeResult = withContext(ioDispatcher) {
+        val write = writeChannel ?: throw IllegalStateException("Not connected")
+        val read = readChannel ?: throw IllegalStateException("Not connected")
+
+        val clientNonce = secureRandomBytes(AuthProtocol.NONCE_BYTES)
+        val hello = TokenHello(pairingId = pairingId, clientNonce = clientNonce)
+        val request = AuthRequest(
+            deviceName = deviceName,
+            authScheme = AuthProtocol.AUTH_SCHEME_TOKEN,
+            customData = hello.encode(),
+        )
+        write.writeDelimited(request.encode())
+
+        // Each handshake read is bounded so a stalled server can't hang us.
+        val challengeResponse = decodeAuthResponse(withTimeout(handshakeTimeoutMs) { read.readDelimited() })
+        if (!challengeResponse.success) {
+            // e.g. PAIRING_REVOKED — server rejected before any challenge.
+            logger.w(TAG, "Token handshake rejected: ${challengeResponse.message}")
+            return@withContext AuthHandshakeResult(false, challengeResponse.message)
+        }
+        // Explicitly require the intermediate-challenge marker AND a non-empty
+        // customData before decoding, instead of inferring it from success alone
+        // (review MINOR-4).
+        if (challengeResponse.message != AuthProtocol.MESSAGE_CHALLENGE || challengeResponse.customData.isEmpty()) {
+            logger.w(TAG, "Unexpected token handshake response: message=${challengeResponse.message}")
+            return@withContext AuthHandshakeResult(false, AuthProtocol.REASON_SERVER_PROOF_MISMATCH)
+        }
+
+        val challenge = decodeTokenChallenge(challengeResponse.customData)
+        val expectedServerProof = TokenProofs.serverProof(secret, clientNonce, challenge.serverNonce)
+        if (!constantTimeEquals(challenge.serverProof, expectedServerProof)) {
+            // Spoofed/incorrect server — abort WITHOUT revealing a client proof.
+            logger.w(TAG, "Server proof mismatch; aborting without sending client proof")
+            return@withContext AuthHandshakeResult(false, AuthProtocol.REASON_SERVER_PROOF_MISMATCH)
+        }
+
+        val clientProof = TokenProofs.clientProof(secret, challenge.serverNonce, clientNonce)
+        write.writeDelimited(TokenProof(clientProof = clientProof).encode())
+
+        val finalResponse = decodeAuthResponse(withTimeout(handshakeTimeoutMs) { read.readDelimited() })
+        logger.d(TAG, "Token handshake final: success=${finalResponse.success}")
+        AuthHandshakeResult(finalResponse.success, finalResponse.message)
+    }
 
     override fun startReadLoop() {
         readLoopJob = scope.launch { readLoop() }

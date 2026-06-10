@@ -2,8 +2,17 @@ package com.ymr.lanlink.core.service
 
 import com.ymr.lanlink.core.data.auth.InMemoryAuthProvider
 import com.ymr.lanlink.core.data.discovery.DiscoveredPeer
+import com.ymr.lanlink.core.data.pairing.InMemoryPairingCredentialStore
+import com.ymr.lanlink.core.data.pairing.InMemoryPairingRegistry
+import com.ymr.lanlink.core.data.proto.AuthProtocol
+import com.ymr.lanlink.core.data.proto.PairingCredential
+import com.ymr.lanlink.core.data.proto.decodeIssuedPairing
+import com.ymr.lanlink.core.data.proto.decodePairingCredential
+import com.ymr.lanlink.core.data.proto.encode
 import com.ymr.lanlink.core.domain.model.ConnectionState
 import com.ymr.lanlink.core.domain.model.PeerInfo
+import com.ymr.lanlink.core.domain.pairing.PairingCredentialStore
+import com.ymr.lanlink.core.domain.pairing.PairingRegistry
 import com.ymr.lanlink.core.net.DiscoveryAdvertiser
 import com.ymr.lanlink.core.net.DiscoveryScanner
 import com.ymr.lanlink.core.net.LanClient
@@ -12,13 +21,29 @@ import com.ymr.lanlink.core.net.LanServer
 import com.ymr.lanlink.core.platform.deviceName
 import com.ymr.lanlink.core.platform.ioDispatcher
 import com.ymr.lanlink.core.platform.logger
+import com.ymr.lanlink.core.platform.nowMillis
 import kotlin.concurrent.Volatile
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
+@OptIn(ExperimentalEncodingApi::class)
 class PinConnectionServiceImpl(
     private val factory: LanNetworkFactory,
-    private val discoveryTimeoutMs: Long = 30_000
+    private val discoveryTimeoutMs: Long = 30_000,
+    // Server-side store of issued pairing records (1:N). Defaults to in-memory;
+    // host App injects a persistent implementation for durability across restarts.
+    private val pairingRegistry: PairingRegistry = InMemoryPairingRegistry(),
+    private val serverDeviceId: String = "",
+    private val serverName: String = "",
+    // Direct-connect fast-path TCP connect timeout before falling back to UDP discovery.
+    private val directConnectTimeoutMs: Long = 3_000,
+    // Client-side store of the most-recent pairing credential blob (1:1). Defaults
+    // to in-memory; host App injects a persistent implementation (SharedPreferences,
+    // DataStore) so reconnectLastServer() survives process restarts. The service
+    // auto-saves on issuance/refresh and auto-clears on PAIRING_REVOKED.
+    private val pairingCredentialStore: PairingCredentialStore = InMemoryPairingCredentialStore(),
 ) : PinConnectionService {
 
     private val _connectionState = MutableStateFlow<PinConnectionState>(PinConnectionState.Idle)
@@ -30,6 +55,9 @@ class PinConnectionServiceImpl(
     private val _eventFlow = MutableSharedFlow<PinConnectionEvent>(replay = 0)
     override val eventFlow: SharedFlow<PinConnectionEvent> = _eventFlow.asSharedFlow()
 
+    private val _pairingActive = MutableStateFlow(false)
+    override val pairingActive: StateFlow<Boolean> = _pairingActive.asStateFlow()
+
     @Volatile private var lanServer: LanServer? = null
     @Volatile private var lanClient: LanClient? = null
     @Volatile private var advertiser: DiscoveryAdvertiser? = null
@@ -40,12 +68,63 @@ class PinConnectionServiceImpl(
         private const val TAG = "PinConnectionServiceImpl"
     }
 
-    override fun startServer(pin: String) {
-        launchSession(pin, operation = "startServer") { runServer(pin) }
+    override fun startServer() {
+        val scope = newScope()
+        scope.launch {
+            try {
+                runServer()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.e(TAG, "startServer failed", e)
+                _connectionState.value = PinConnectionState.Error(null, e.message ?: "startServer failed")
+            }
+        }
     }
 
-    override fun connectServer(pin: String) {
-        launchSession(pin, operation = "connectServer") { runClient(pin) }
+    override fun startPairing(pin: String) {
+        validatePin(pin)
+        val server = lanServer
+        if (server == null) {
+            logger.w(TAG, "startPairing called before startServer")
+            _connectionState.value = PinConnectionState.Error(null, "startPairing requires startServer first")
+            return
+        }
+        server.setPairingPin(pin)
+        _pairingActive.value = true
+        logger.d(TAG, "Pairing window opened")
+    }
+
+    override fun stopPairing() {
+        // Closing the window does not tear down the session: connected peers and
+        // token reconnects keep working.
+        lanServer?.setPairingPin(null)
+        _pairingActive.value = false
+        logger.d(TAG, "Pairing window closed")
+    }
+
+    override fun pairWithServer(pin: String) {
+        launchSession(pin, operation = "pairWithServer") { runClient(pin) }
+    }
+
+    override fun reconnectLastServer() {
+        val scope = newScope()
+        scope.launch {
+            try {
+                val localData = pairingCredentialStore.load()
+                if (localData == null) {
+                    logger.w(TAG, "reconnectLastServer: no stored pairing")
+                    _connectionState.value = PinConnectionState.Error(null, "no stored pairing")
+                    return@launch
+                }
+                runDirectConnect(localData)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.e(TAG, "reconnectLastServer failed", e)
+                _connectionState.value = PinConnectionState.Error(null, e.message ?: "reconnectLastServer failed")
+            }
+        }
     }
 
     override fun disconnect() {
@@ -60,6 +139,7 @@ class PinConnectionServiceImpl(
         advertiser = null
         scanner?.stop()
         scanner = null
+        _pairingActive.value = false
         _connectionState.value = PinConnectionState.Idle
     }
 
@@ -73,10 +153,16 @@ class PinConnectionServiceImpl(
         }
     }
 
-    private suspend fun CoroutineScope.runServer(pin: String) {
-        _connectionState.value = PinConnectionState.Connecting(pin, isServer = true)
+    private suspend fun CoroutineScope.runServer() {
+        // Listening (server up, no peer yet). No PIN on the wire here — the PIN
+        // window is a separate concern opened via startPairing().
+        _connectionState.value = PinConnectionState.Connecting(null, isServer = true)
 
-        val server = factory.createServer(pin).also { lanServer = it }
+        val server = factory.createServer(
+            pairingRegistry = pairingRegistry,
+            serverDeviceId = serverDeviceId,
+            serverName = serverName,
+        ).also { lanServer = it }
         val port = server.start()
         logger.d(TAG, "TCP server started on port $port")
 
@@ -86,15 +172,15 @@ class PinConnectionServiceImpl(
         }
         logger.d(TAG, "UDP discovery broadcasting on port $port")
 
-        launch { awaitAuthenticatedPeer(pin, server) }
+        launch { awaitAuthenticatedPeer(server) }
         launch { pipeMessages(server.messages) }
         launch { awaitServerDisconnect(server) }
     }
 
-    private suspend fun awaitAuthenticatedPeer(pin: String, server: LanServer) {
+    private suspend fun awaitAuthenticatedPeer(server: LanServer) {
         server.authenticatedPeers.collect { peer ->
             logger.d(TAG, "Peer authenticated: ${peer.name}")
-            markConnected(pin, isServer = true, peerName = peer.name)
+            markConnected(null, isServer = true, peerName = peer.name)
         }
     }
 
@@ -139,8 +225,189 @@ class PinConnectionServiceImpl(
         markConnected(pin, isServer = false, peerName = peer.name)
         logger.d(TAG, "Connected to ${peer.name}")
 
+        // First-pairing credential issuance: if the server minted a pairing
+        // record it travels back in customData. Assemble the opaque localData blob
+        // and store it for future reconnectLastServer() calls.
+        result.customData?.let { issuedBytes ->
+            val localData = buildLocalData(issuedBytes, peer.host, peer.port)
+            // Auto-persist so reconnectLastServer() works without the App handling
+            // the blob; the event is still emitted for observability.
+            pairingCredentialStore.save(localData)
+            _eventFlow.emit(PinConnectionEvent.PairingCredentialIssued)
+            logger.d(TAG, "Pairing credential issued")
+        }
+
         launch { pipeMessages(client.messages) }
         launch { awaitClientDisconnect(client) }
+    }
+
+    private fun buildLocalData(issuedBytes: ByteArray, host: String, port: Int): String {
+        val issued = decodeIssuedPairing(issuedBytes)
+        val credential = PairingCredential(
+            version = 1,
+            scheme = AuthProtocol.SCHEME_HMAC_SHA256_V1,
+            pairingId = issued.pairingId,
+            secret = issued.secret,
+            serverDeviceId = issued.serverDeviceId,
+            serverName = issued.serverName,
+            lastHost = host,
+            lastPort = port,
+            pairedAt = nowMillis(),
+        )
+        return Base64.encode(credential.encode())
+    }
+
+    private suspend fun CoroutineScope.runDirectConnect(localData: String) {
+        val credential = try {
+            decodePairingCredential(Base64.decode(localData)).also {
+                require(it.version == 1 && it.scheme == AuthProtocol.SCHEME_HMAC_SHA256_V1) { "invalid credential" }
+                require(it.pairingId.isNotEmpty() && it.secret.isNotEmpty()) { "invalid credential" }
+            }
+        } catch (e: Exception) {
+            logger.w(TAG, "Invalid credential blob", e)
+            _connectionState.value = PinConnectionState.Error(null, "invalid credential")
+            return
+        }
+
+        _connectionState.value = PinConnectionState.Connecting(null, isServer = false)
+
+        // Fast path: direct connect to the credential's last known address.
+        var connectedPeer: PeerInfo? = null
+        var connectedClient: LanClient? = null
+        if (credential.lastHost.isNotEmpty() && credential.lastPort > 0) {
+            val fastPeer = PeerInfo(credential.serverName, credential.lastHost, credential.lastPort)
+            when (val outcome = tryTokenConnect(fastPeer, credential)) {
+                is DirectOutcome.Connected -> {
+                    connectedPeer = fastPeer
+                    connectedClient = outcome.client
+                }
+                is DirectOutcome.Revoked -> {
+                    onPairingRevoked()
+                    return
+                }
+                is DirectOutcome.Unreachable -> {
+                    logger.d(TAG, "Direct fast path failed (${outcome.reason}); falling back to discovery")
+                }
+            }
+        }
+
+        // Fallback path: UDP discovery, prefer a peer matching the stored serverName.
+        if (connectedPeer == null) {
+            _connectionState.value = PinConnectionState.Discovering(null)
+            val discovered = discoverPeerPreferring(credential.serverName)
+            if (discovered == null) {
+                logger.w(TAG, "Discovery timeout during direct connect")
+                _connectionState.value = PinConnectionState.Error(null, "Discovery timeout")
+                return
+            }
+            val discoveredPeer = PeerInfo(discovered.name, discovered.host, discovered.port)
+            when (val outcome = tryTokenConnect(discoveredPeer, credential)) {
+                is DirectOutcome.Connected -> {
+                    connectedPeer = discoveredPeer
+                    connectedClient = outcome.client
+                }
+                is DirectOutcome.Revoked -> {
+                    onPairingRevoked()
+                    return
+                }
+                is DirectOutcome.Unreachable -> {
+                    _connectionState.value = PinConnectionState.Error(null, outcome.reason)
+                    return
+                }
+            }
+        }
+
+        val peer = connectedPeer
+        val client = connectedClient
+        if (peer == null || client == null) {
+            // Unreachable: every Connected branch sets both together. Guard
+            // instead of !! so a future refactor fails loudly rather than NPEs.
+            _connectionState.value = PinConnectionState.Error(null, "connect failed")
+            client?.disconnect()
+            return
+        }
+        lanClient = client
+        client.startReadLoop()
+        markConnected(null, isServer = false, peerName = peer.name)
+        logger.d(TAG, "Direct-connected to ${peer.name}")
+
+        // If the live address differs from the stored one, refresh the credential.
+        if (peer.host != credential.lastHost || peer.port != credential.lastPort) {
+            val updated = credential.copy(lastHost = peer.host, lastPort = peer.port)
+            val updatedBlob = Base64.encode(updated.encode())
+            // Auto-persist the refreshed blob so the next reconnect uses the live
+            // address; the event is still emitted for observability.
+            pairingCredentialStore.save(updatedBlob)
+            _eventFlow.emit(PinConnectionEvent.PairingCredentialUpdated)
+            logger.d(TAG, "Pairing credential address updated")
+        }
+
+        launch { pipeMessages(client.messages) }
+        launch { awaitClientDisconnect(client) }
+    }
+
+    private sealed class DirectOutcome {
+        // Carries the connected [LanClient] so the caller owns the live instance
+        // directly, instead of reaching back through a shared mutable field +
+        // !! (review MINOR-1/2).
+        data class Connected(val client: LanClient) : DirectOutcome()
+        object Revoked : DirectOutcome()
+        data class Unreachable(val reason: String) : DirectOutcome()
+    }
+
+    /**
+     * Attempts a TCP connect to [peer] (bounded by [directConnectTimeoutMs]) and
+     * the token handshake against [credential]. A network failure or a server
+     * proof mismatch is [DirectOutcome.Unreachable] (caller may try another peer);
+     * a PAIRING_REVOKED verdict is definitive ([DirectOutcome.Revoked]).
+     */
+    private suspend fun tryTokenConnect(peer: PeerInfo, credential: PairingCredential): DirectOutcome {
+        val client = factory.createClient()
+        var success = false
+        try {
+            try {
+                withTimeout(directConnectTimeoutMs) { client.connect(PeerInfo(peer.name, peer.host, peer.port)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return DirectOutcome.Unreachable("connect failed: ${e.message}")
+            }
+            if (client.connectionState.value !is ConnectionState.Connected) {
+                return DirectOutcome.Unreachable("connect failed")
+            }
+
+            val result = client.authenticateWithCredential(deviceName(), credential.pairingId, credential.secret)
+            return if (result.success) {
+                success = true
+                DirectOutcome.Connected(client)
+            } else if (result.message == AuthProtocol.REASON_PAIRING_REVOKED) {
+                DirectOutcome.Revoked
+            } else {
+                DirectOutcome.Unreachable(result.message)
+            }
+        } finally {
+            // Any non-success exit (including cancellation) must release the
+            // socket this method opened (review MINOR-1).
+            if (!success) client.disconnect()
+        }
+    }
+
+    private suspend fun onPairingRevoked() {
+        logger.w(TAG, "Pairing revoked by server")
+        // Drop the stale credential so reconnectLastServer() no longer offers it;
+        // the App observes AuthFailed and falls back to PIN pairing.
+        pairingCredentialStore.clear()
+        _connectionState.value = PinConnectionState.Error(null, AuthProtocol.REASON_PAIRING_REVOKED)
+        _eventFlow.emit(PinConnectionEvent.AuthFailed(AuthProtocol.REASON_PAIRING_REVOKED))
+    }
+
+    private suspend fun discoverPeerPreferring(serverName: String): DiscoveredPeer? {
+        val discovery = factory.createScanner().also { scanner = it }
+        discovery.start()
+        return withTimeoutOrNull(discoveryTimeoutMs) {
+            val peers = discovery.discoveredPeers.first { it.isNotEmpty() }
+            peers.firstOrNull { it.name == serverName } ?: peers.first()
+        }
     }
 
     private suspend fun discoverPeer(): DiscoveredPeer? {
@@ -197,7 +464,7 @@ class PinConnectionServiceImpl(
         }
     }
 
-    private suspend fun markConnected(pin: String, isServer: Boolean, peerName: String) {
+    private suspend fun markConnected(pin: String?, isServer: Boolean, peerName: String) {
         _connectionState.value = PinConnectionState.Connected(pin, isServer, peerName)
         _eventFlow.emit(PinConnectionEvent.PeerConnected(peerName))
     }

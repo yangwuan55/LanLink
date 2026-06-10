@@ -27,6 +27,19 @@ interface LanClient {
      */
     suspend fun authenticate(deviceName: String, credentials: ByteArray): AuthHandshakeResult
 
+    /**
+     * Runs the credential direct-connect handshake (HMAC-SHA256 challenge-response):
+     * sends a TokenHello for [pairingId], verifies the server's proof in constant
+     * time, then returns its own proof. [secret] is the shared pairing secret and
+     * never travels the network. Aborts without sending a client proof if the
+     * server proof does not verify.
+     */
+    suspend fun authenticateWithCredential(
+        deviceName: String,
+        pairingId: String,
+        secret: ByteArray,
+    ): AuthHandshakeResult
+
     /** Starts the inbound read loop (and heartbeat) after a successful handshake. */
     fun startReadLoop()
 

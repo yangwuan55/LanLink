@@ -39,8 +39,8 @@ LanLink 是一个轻量、依赖极少的 **[Kotlin Multiplatform](https://kotli
 sequenceDiagram
     participant A as 设备 A（主机）
     participant B as 设备 B（加入）
-    A->>A: startServer(pin) — 开启 TCP 服务并通过 UDP/NSD 广播
-    B->>B: connectServer(pin) — 扫描已广播的对端
+    A->>A: startServer() + startPairing(pin) — 开启 TCP 服务并通过 UDP/NSD 广播，打开 PIN 配对窗口
+    B->>B: pairWithServer(pin) — 扫描已广播的对端
     B-->>A: TCP 连接
     B->>A: AuthRequest（PIN）
     A->>B: AuthResponse（接受 / 拒绝）
@@ -140,11 +140,13 @@ implementation 'com.github.yangwuan55.LanLink:lanlink-core:0.1.2'
 // AndroidLanNetworkFactory 提供基于 Ktor 的传输 + 发现实现。
 val service: PinConnectionService = PinConnectionServiceImpl(AndroidLanNetworkFactory())
 
-// 一端作为主机…
-service.startServer(pin = "123456")
+// 一端作为主机：先启动服务，再开启 PIN 配对窗口。
+service.startServer()                 // 监听 + 广播；始终接受已配对 client 的 token 重连
+service.startPairing(pin = "123456")  // 打开 PIN 窗口，接受新配对
+// service.stopPairing()              // 配对完成后关闭窗口
 
-// …另一端加入。
-service.connectServer(pin = "123456")
+// …另一端加入（首次 PIN 配对）。
+service.pairWithServer(pin = "123456")
 ```
 
 ### 订阅状态、消息与事件
@@ -188,8 +190,12 @@ service.send(type = TYPE_CHAT, data = "Hello!".encodeToByteArray())
 | `connectionState: StateFlow<PinConnectionState>` | Idle → Discovering → Connecting → Connected / Error |
 | `messageFlow: SharedFlow<TypedMessage>` | 入站帧（`type` 标签 + 原始 `payload` 字节） |
 | `eventFlow: SharedFlow<PinConnectionEvent>` | 对端连接/断开、鉴权失败 |
-| `startServer(pin)` | 主机：开启 TCP 服务并广播 |
-| `connectServer(pin)` | 加入：发现并连接到主机 |
+| `pairingActive: StateFlow<Boolean>` | server PIN 配对窗口是否开启 |
+| `startServer()` | 主机：开启 TCP 服务并广播；始终接受 token 重连 |
+| `startPairing(pin)` | 主机：开启 PIN 配对窗口（须在 `startServer()` 之后调用） |
+| `stopPairing()` | 主机：关闭 PIN 配对窗口（已连接对端与 token 重连不受影响） |
+| `pairWithServer(pin)` | 加入：首次 PIN 配对（发现 + 连接 + 签发凭据） |
+| `reconnectLastServer()` | 加入：重连最近一次配对的 server，无需 PIN |
 | `send(type, data)` | 向对端发送一个带类型的帧 |
 | `disconnect()` | 关闭会话 |
 
@@ -206,6 +212,81 @@ class TokenAuthProvider(private val token: ByteArray) : AuthProvider {
 ```
 
 通过自定义的 `LanNetworkFactory` 传入你的鉴权提供者（接线方式参见 `AndroidLanNetworkFactory`）。内置的 `InMemoryAuthProvider` 校验 6 位 PIN，并在多次失败后锁定；`NoOpAuthProvider` 接受所有连接（仅供测试）。
+
+---
+
+## 配对凭据与直连重连
+
+配对窗口与服务生命周期解耦。`startServer()` 之后，主机立即接受已配对 client 的 **token 重连**；**仅在配对窗口开启期间**（`startPairing(pin)` … `stopPairing()`）才接受新的 PIN 配对。
+
+client 端 `pairWithServer(pin)` 成功后，服务会把签发的凭据**自动存入**注入的 `PairingCredentialStore`。下次启动只需调用 `reconnectLastServer()`——无需 PIN，App 也不必再手动回传 blob。
+
+```kotlin
+// 注入持久化 store，使凭据跨进程重启仍可用。
+val service = PinConnectionServiceImpl(
+    AndroidLanNetworkFactory(),
+    pairingCredentialStore = SharedPrefsPairingCredentialStore(context), // 你的实现
+)
+
+// Server：围绕首次配对开启/关闭配对窗口。
+service.startServer()
+service.startPairing(pin = "123456")
+service.pairingActive.collect { open -> /* 在 UI 上反映窗口状态 */ }
+// …client 完成配对后：
+service.stopPairing()
+
+// 凭据生命周期全自动；如需 UI 反馈才订阅事件。
+service.eventFlow.collect { event ->
+    when (event) {
+        is PinConnectionEvent.PairingCredentialIssued -> { /* 已自动存储 */ }
+        is PinConnectionEvent.PairingCredentialUpdated -> { /* 已自动存储 */ }
+        is PinConnectionEvent.AuthFailed -> {
+            if (event.reason == "PAIRING_REVOKED") { /* store 已自动清除；回退 PIN 配对 */ }
+        }
+        else -> Unit
+    }
+}
+
+// Client：无需 PIN 直接重连；store 为空时以 reason "no stored pairing" 进入 Error。
+service.reconnectLastServer()
+// 首次配对则用：
+service.pairWithServer(pin = "123456")
+```
+
+### 配对模型
+
+| 端 | 基数 | 存储 |
+|---|---|---|
+| Server | **1 : N** —— 每个已配对的 client 一条记录，以 `pairingId` 为主键 | 注入持久化 `PairingRegistry`（默认内存实现） |
+| Client | **1 : 1** —— 一份凭据 blob（最近配对的 server） | 注入持久化 `PairingCredentialStore`（默认内存实现）；服务自动保存/清除 |
+
+当 server 的 IP/端口发生变化时：库会自动回退到 UDP 发现，完成 token 握手后把刷新的 blob 写回 store，并发出 `PairingCredentialUpdated` 事件供观察。
+
+### 安全边界
+
+- 共享密钥由 `secureRandomBytes(32)` 生成，**永远不会在网络上传输**，仅用于派生 HMAC 证明。
+- 每次连接使用全新的 nonce，防止重放攻击。
+- 双向认证——双方均需校验对方的证明，防止假冒 server。
+- **业务帧未加密** —— HMAC 只做身份认证，不提供机密性。如需保密，请在传输层加 TLS 或会话密钥加密。
+
+### secret 落盘建议
+
+`localData` 是内嵌共享密钥的 Base64 编码 protobuf blob，请对其进行静态加密保护：
+
+```kotlin
+// Android：使用 Jetpack Security 的 EncryptedSharedPreferences
+val masterKey = MasterKey.Builder(context)
+    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+    .build()
+val encryptedPrefs = EncryptedSharedPreferences.create(
+    context, "secure_lanlink_prefs", masterKey,
+    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+)
+encryptedPrefs.edit().putString("pairing_credential", event.localData).apply()
+```
+
+如需最高安全级别，可直接将密钥存入 Android Keystore。demo 为保持简洁使用了普通 `SharedPreferences`。
 
 ---
 

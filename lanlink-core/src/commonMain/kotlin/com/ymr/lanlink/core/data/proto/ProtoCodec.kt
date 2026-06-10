@@ -43,6 +43,36 @@ fun ConnectionStatus.encode(): ByteArray = protoBuf.encodeToByteArray(this)
 @OptIn(ExperimentalSerializationApi::class)
 fun decodeConnectionStatus(bytes: ByteArray): ConnectionStatus = protoBuf.decodeFromByteArray(bytes)
 
+@OptIn(ExperimentalSerializationApi::class)
+fun IssuedPairing.encode(): ByteArray = protoBuf.encodeToByteArray(this)
+
+@OptIn(ExperimentalSerializationApi::class)
+fun decodeIssuedPairing(bytes: ByteArray): IssuedPairing = protoBuf.decodeFromByteArray(bytes)
+
+@OptIn(ExperimentalSerializationApi::class)
+fun PairingCredential.encode(): ByteArray = protoBuf.encodeToByteArray(this)
+
+@OptIn(ExperimentalSerializationApi::class)
+fun decodePairingCredential(bytes: ByteArray): PairingCredential = protoBuf.decodeFromByteArray(bytes)
+
+@OptIn(ExperimentalSerializationApi::class)
+fun TokenHello.encode(): ByteArray = protoBuf.encodeToByteArray(this)
+
+@OptIn(ExperimentalSerializationApi::class)
+fun decodeTokenHello(bytes: ByteArray): TokenHello = protoBuf.decodeFromByteArray(bytes)
+
+@OptIn(ExperimentalSerializationApi::class)
+fun TokenChallenge.encode(): ByteArray = protoBuf.encodeToByteArray(this)
+
+@OptIn(ExperimentalSerializationApi::class)
+fun decodeTokenChallenge(bytes: ByteArray): TokenChallenge = protoBuf.decodeFromByteArray(bytes)
+
+@OptIn(ExperimentalSerializationApi::class)
+fun TokenProof.encode(): ByteArray = protoBuf.encodeToByteArray(this)
+
+@OptIn(ExperimentalSerializationApi::class)
+fun decodeTokenProof(bytes: ByteArray): TokenProof = protoBuf.decodeFromByteArray(bytes)
+
 // endregion
 
 // region varint (LEB128, base-128) — pure functions

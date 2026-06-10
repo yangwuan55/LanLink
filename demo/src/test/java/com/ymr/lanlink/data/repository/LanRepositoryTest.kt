@@ -19,7 +19,10 @@ class LanRepositoryTest {
     fun `repository has expected public API`() {
         val methods = LanRepository::class.java.declaredMethods.map { it.name }
         assertTrue("Should have startServer", methods.contains("startServer"))
-        assertTrue("Should have connectServer", methods.contains("connectServer"))
+        assertTrue("Should have startPairing", methods.contains("startPairing"))
+        assertTrue("Should have stopPairing", methods.contains("stopPairing"))
+        assertTrue("Should have pairWithServer", methods.contains("pairWithServer"))
+        assertTrue("Should have reconnectLastServer", methods.contains("reconnectLastServer"))
         assertTrue("Should have disconnect", methods.contains("disconnect"))
         assertTrue("Should have sendMessage", methods.contains("sendMessage"))
         assertTrue("Should have close", methods.contains("close"))

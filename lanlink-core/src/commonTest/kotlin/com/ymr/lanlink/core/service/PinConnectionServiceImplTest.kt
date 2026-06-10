@@ -48,7 +48,7 @@ class PinConnectionServiceImplTest {
         // race ahead of subscription and are dropped (flaky under real dispatchers).
         val collector = launch(start = CoroutineStart.UNDISPATCHED) { service.eventFlow.toList(events) }
 
-        service.startServer(pin)
+        service.startServer()
 
         // Server + advertiser come up.
         assertNotNull(awaitNotNull { factory.server?.takeIf { it.started } })
@@ -91,7 +91,7 @@ class PinConnectionServiceImplTest {
         val factory = FakeLanNetworkFactory(authSucceeds = true)
         val service = PinConnectionServiceImpl(factory)
 
-        service.connectServer(pin)
+        service.pairWithServer(pin)
 
         // Scanner started and discovery resolves -> client connects + authenticates.
         assertNotNull(awaitNotNull { factory.scanner?.takeIf { it.started } })
@@ -123,7 +123,7 @@ class PinConnectionServiceImplTest {
         // race ahead of subscription and are dropped (flaky under real dispatchers).
         val collector = launch(start = CoroutineStart.UNDISPATCHED) { service.eventFlow.toList(events) }
 
-        service.connectServer(pin)
+        service.pairWithServer(pin)
 
         val error = awaitNotNull { service.connectionState.value as? PinConnectionState.Error }
         assertNotNull(error)
@@ -142,7 +142,7 @@ class PinConnectionServiceImplTest {
         // Short timeout so the test is fast.
         val service = PinConnectionServiceImpl(factory, discoveryTimeoutMs = 300)
 
-        service.connectServer(pin)
+        service.pairWithServer(pin)
 
         val error = awaitNotNull { service.connectionState.value as? PinConnectionState.Error }
         assertNotNull(error)
@@ -161,7 +161,7 @@ class PinConnectionServiceImplTest {
         val received = mutableListOf<TypedMessage>()
         val collector = launch { service.messageFlow.toList(received) }
 
-        service.startServer(pin)
+        service.startServer()
         val server = awaitNotNull { factory.server?.takeIf { it.started } }
         assertNotNull(server)
 
@@ -189,7 +189,7 @@ class PinConnectionServiceImplTest {
         val received = mutableListOf<TypedMessage>()
         val collector = launch { service.messageFlow.toList(received) }
 
-        service.connectServer(pin)
+        service.pairWithServer(pin)
         val client = awaitNotNull { factory.client?.takeIf { it.readLoopStarted } }
         assertNotNull(client)
 
@@ -216,7 +216,7 @@ class PinConnectionServiceImplTest {
         // race ahead of subscription and are dropped (flaky under real dispatchers).
         val collector = launch(start = CoroutineStart.UNDISPATCHED) { service.eventFlow.toList(events) }
 
-        service.connectServer(pin)
+        service.pairWithServer(pin)
         val client = awaitNotNull { factory.client?.takeIf { it.readLoopStarted } }
         assertNotNull(client)
         awaitNotNull { service.connectionState.value as? PinConnectionState.Connected }
@@ -228,5 +228,58 @@ class PinConnectionServiceImplTest {
 
         collector.cancel()
         service.disconnect()
+    }
+
+    @Test
+    fun startPairing_opens_window_and_stopPairing_closes_it() = runBlocking {
+        val factory = FakeLanNetworkFactory()
+        val service = PinConnectionServiceImpl(factory)
+
+        service.startServer()
+        val server = awaitNotNull { factory.server?.takeIf { it.started } }
+        assertNotNull(server)
+        // Window starts closed and pairingActive is false.
+        assertEquals(null, server!!.pairingPin)
+        assertFalse(service.pairingActive.value)
+
+        service.startPairing(pin)
+        assertEquals(pin, awaitNotNull { server.pairingPin })
+        assertTrue(awaitNotNull { service.pairingActive.value.takeIf { it } } ?: false)
+
+        service.stopPairing()
+        assertNotNull(awaitNotNull { if (server.pairingPin == null) true else null })
+        assertFalse(service.pairingActive.value)
+
+        service.disconnect()
+    }
+
+    @Test
+    fun startPairing_before_startServer_enters_error() = runBlocking {
+        val factory = FakeLanNetworkFactory()
+        val service = PinConnectionServiceImpl(factory)
+
+        service.startPairing(pin)
+
+        val error = awaitNotNull { service.connectionState.value as? PinConnectionState.Error }
+        assertNotNull(error)
+        assertFalse(service.pairingActive.value)
+        // No server was created.
+        assertEquals(null, factory.server)
+
+        service.disconnect()
+    }
+
+    @Test
+    fun disconnect_resets_pairingActive() = runBlocking {
+        val factory = FakeLanNetworkFactory()
+        val service = PinConnectionServiceImpl(factory)
+
+        service.startServer()
+        awaitNotNull { factory.server?.takeIf { it.started } }
+        service.startPairing(pin)
+        assertTrue(awaitNotNull { service.pairingActive.value.takeIf { it } } ?: false)
+
+        service.disconnect()
+        assertFalse(service.pairingActive.value)
     }
 }

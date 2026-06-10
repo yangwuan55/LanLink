@@ -1,8 +1,14 @@
 package com.ymr.lanlink.core.service
 
+import com.ymr.lanlink.core.crypto.TokenProofs
+import com.ymr.lanlink.core.crypto.constantTimeEquals
 import com.ymr.lanlink.core.data.discovery.DiscoveredPeer
+import com.ymr.lanlink.core.data.proto.IssuedPairing
+import com.ymr.lanlink.core.data.proto.encode
 import com.ymr.lanlink.core.domain.model.ConnectionState
 import com.ymr.lanlink.core.domain.model.PeerInfo
+import com.ymr.lanlink.core.domain.pairing.PairingRecord
+import com.ymr.lanlink.core.domain.pairing.PairingRegistry
 import com.ymr.lanlink.core.net.AuthHandshakeResult
 import com.ymr.lanlink.core.net.DiscoveryAdvertiser
 import com.ymr.lanlink.core.net.DiscoveryScanner
@@ -21,7 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * tests without any real sockets. Tests push to the public mutable flows to
  * simulate peer lifecycle events.
  */
-class FakeLanServer(val pin: String) : LanServer {
+class FakeLanServer : LanServer {
     val _messages = MutableSharedFlow<Pair<Int, ByteArray>>(replay = 0, extraBufferCapacity = 16)
     override val messages: SharedFlow<Pair<Int, ByteArray>> = _messages.asSharedFlow()
 
@@ -36,9 +42,18 @@ class FakeLanServer(val pin: String) : LanServer {
     val sent = mutableListOf<Pair<Int, ByteArray>>()
     val boundPort = 4242
 
+    // Current PIN pairing-window value: null = closed. Mirrors the real
+    // TcpSocketServer gate so orchestration tests can assert window control.
+    var pairingPin: String? = null
+        private set
+
     override suspend fun start(): Int {
         started = true
         return boundPort
+    }
+
+    override fun setPairingPin(pin: String?) {
+        pairingPin = pin
     }
 
     override suspend fun send(type: Int, data: ByteArray) {
@@ -52,10 +67,29 @@ class FakeLanServer(val pin: String) : LanServer {
 }
 
 /**
- * In-memory [LanClient]. [authSucceeds] controls the handshake verdict so a test
- * can drive both the success and failure orchestration branches.
+ * Holds the per-test shared pairing secrets so [FakeLanClient.authenticate] (PIN,
+ * issuance) and [FakeLanClient.authenticateWithCredential] (token reconnect) can
+ * exchange a credential exactly as a real server/client pair would. Models the
+ * server's [PairingRegistry] as the source of truth for known pairings.
  */
-class FakeLanClient(private val authSucceeds: Boolean) : LanClient {
+class FakeServerWorld(
+    val registry: PairingRegistry,
+    val serverDeviceId: String = "srv-device",
+    val serverName: String = "RemotePeer",
+    val issueSecret: ByteArray,
+    val issuePairingId: String,
+)
+
+/**
+ * In-memory [LanClient]. [authSucceeds] controls the PIN handshake verdict.
+ * When [world] is provided, the PIN handshake also "mints" a pairing record into
+ * the registry and returns it as customData, and [authenticateWithCredential]
+ * runs the real HMAC challenge-response against the registry.
+ */
+class FakeLanClient(
+    private val authSucceeds: Boolean,
+    private val world: FakeServerWorld? = null,
+) : LanClient {
     val _messages = MutableSharedFlow<Pair<Int, ByteArray>>(replay = 0, extraBufferCapacity = 16)
     override val messages: SharedFlow<Pair<Int, ByteArray>> = _messages.asSharedFlow()
 
@@ -69,18 +103,70 @@ class FakeLanClient(private val authSucceeds: Boolean) : LanClient {
     var disconnected = false
     val sent = mutableListOf<Pair<Int, ByteArray>>()
 
+    // Token-handshake observability for negative-path assertions.
+    var tokenPairingId: String? = null
+    var clientProofSent = false
+
     override suspend fun connect(peer: PeerInfo) {
         connectedPeer = peer
         _connectionState.value = ConnectionState.Connecting
+        // Successful TCP connect; transport reaches Connected before auth runs.
+        _connectionState.value = ConnectionState.Connected(peer.name, false)
     }
 
     override suspend fun authenticate(deviceName: String, credentials: ByteArray): AuthHandshakeResult {
         authDeviceName = deviceName
         authCredentials = credentials
-        return if (authSucceeds) {
+        if (!authSucceeds) return AuthHandshakeResult(false, "Invalid PIN")
+
+        val w = world ?: return AuthHandshakeResult(true, "OK")
+        // Mint + persist the pairing record (server side) and ship it back.
+        w.registry.save(
+            PairingRecord(
+                pairingId = w.issuePairingId,
+                secret = w.issueSecret,
+                clientDeviceName = deviceName,
+                pairedAt = 0L,
+                lastSeenAt = 0L,
+            )
+        )
+        val issued = IssuedPairing(
+            pairingId = w.issuePairingId,
+            secret = w.issueSecret,
+            serverDeviceId = w.serverDeviceId,
+            serverName = w.serverName,
+        )
+        return AuthHandshakeResult(true, "OK", customData = issued.encode())
+    }
+
+    override suspend fun authenticateWithCredential(
+        deviceName: String,
+        pairingId: String,
+        secret: ByteArray,
+    ): AuthHandshakeResult {
+        authDeviceName = deviceName
+        tokenPairingId = pairingId
+        val w = world ?: return AuthHandshakeResult(false, "PAIRING_REVOKED")
+        val record = w.registry.find(pairingId)
+            ?: return AuthHandshakeResult(false, "PAIRING_REVOKED")
+
+        // Emulate the wire challenge-response with real proofs and fresh nonces.
+        val clientNonce = byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+        val serverNonce = byteArrayOf(16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
+        val serverProof = TokenProofs.serverProof(record.secret, clientNonce, serverNonce)
+        // Client verifies server proof (constant time) against the credential secret.
+        val expectedServerProof = TokenProofs.serverProof(secret, clientNonce, serverNonce)
+        if (!constantTimeEquals(serverProof, expectedServerProof)) {
+            // Aborts WITHOUT sending a client proof.
+            return AuthHandshakeResult(false, "SERVER_PROOF_MISMATCH")
+        }
+        clientProofSent = true
+        val clientProof = TokenProofs.clientProof(secret, serverNonce, clientNonce)
+        val expectedClientProof = TokenProofs.clientProof(record.secret, serverNonce, clientNonce)
+        return if (constantTimeEquals(clientProof, expectedClientProof)) {
             AuthHandshakeResult(true, "OK")
         } else {
-            AuthHandshakeResult(false, "Invalid PIN")
+            AuthHandshakeResult(false, "INVALID_PROOF")
         }
     }
 
@@ -131,26 +217,62 @@ class FakeDiscoveryScanner(private val peerToDiscover: DiscoveredPeer?) : Discov
 /**
  * Fake [LanNetworkFactory] wiring the in-memory components. Exposes the created
  * instances so assertions can inspect orchestration side effects.
+ *
+ * [world] threads a shared pairing registry/secret through the fake client so the
+ * issuance + token reconnect flow can be exercised end-to-end. [reachableHosts]
+ * gates which hosts the fake client can TCP-connect to, so the direct fast-path
+ * failure + discovery fallback can be simulated; null means all hosts reachable.
  */
 class FakeLanNetworkFactory(
     private val authSucceeds: Boolean = true,
-    private val peerToDiscover: DiscoveredPeer? = DiscoveredPeer("RemotePeer", "10.0.0.5", 4242)
+    private val peerToDiscover: DiscoveredPeer? = DiscoveredPeer("RemotePeer", "10.0.0.5", 4242),
+    private val world: FakeServerWorld? = null,
+    private val reachableHosts: Set<String>? = null,
 ) : LanNetworkFactory {
 
     var server: FakeLanServer? = null
     var client: FakeLanClient? = null
+    val clients = mutableListOf<FakeLanClient>()
     var advertiser: FakeDiscoveryAdvertiser? = null
     var scanner: FakeDiscoveryScanner? = null
 
-    override fun createServer(pin: String): LanServer =
-        FakeLanServer(pin).also { server = it }
+    override fun createServer(
+        pairingRegistry: PairingRegistry,
+        serverDeviceId: String,
+        serverName: String,
+    ): LanServer = FakeLanServer().also { server = it }
 
     override fun createClient(): LanClient =
-        FakeLanClient(authSucceeds).also { client = it }
+        FakeLanClient(authSucceeds, world).let { c ->
+            val gated = if (reachableHosts == null) c else GatedFakeLanClient(c, reachableHosts)
+            // Track the underlying fake for assertions.
+            client = c
+            clients.add(c)
+            gated
+        }
 
     override fun createAdvertiser(servicePort: Int): DiscoveryAdvertiser =
         FakeDiscoveryAdvertiser(servicePort).also { advertiser = it }
 
     override fun createScanner(): DiscoveryScanner =
         FakeDiscoveryScanner(peerToDiscover).also { scanner = it }
+}
+
+/**
+ * Wraps a [FakeLanClient] so connecting to a host outside [reachableHosts] fails
+ * (stays Idle), modelling an unreachable last-known address that forces the
+ * direct-connect orchestration to fall back to discovery.
+ */
+class GatedFakeLanClient(
+    private val delegate: FakeLanClient,
+    private val reachableHosts: Set<String>,
+) : LanClient by delegate {
+    override suspend fun connect(peer: PeerInfo) {
+        if (peer.host in reachableHosts) {
+            delegate.connect(peer)
+        } else {
+            // Unreachable: leave the connection Idle so tryTokenConnect bails out.
+            delegate.disconnect()
+        }
+    }
 }

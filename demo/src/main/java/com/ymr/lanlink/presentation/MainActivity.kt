@@ -32,13 +32,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var viewModel: LanViewModel
     private var lanService: LanForegroundService? = null
     private var serviceBound = false
-    private var matchingStarted = false
 
     // UI components
     private lateinit var roleSelection: RadioGroup
     private lateinit var secretKeyInput: EditText
     private lateinit var statusText: TextView
     private lateinit var startStopButton: Button
+    private lateinit var pairingButton: Button
+    private lateinit var directConnectButton: Button
     private lateinit var messageInput: EditText
     private lateinit var sendButton: Button
     private lateinit var messageLog: RecyclerView
@@ -83,6 +84,8 @@ class MainActivity : AppCompatActivity() {
         secretKeyInput = findViewById(R.id.secret_key_input)
         statusText = findViewById(R.id.status_text)
         startStopButton = findViewById(R.id.start_stop_button)
+        pairingButton = findViewById(R.id.pairing_button)
+        directConnectButton = findViewById(R.id.direct_connect_button)
         messageInput = findViewById(R.id.message_input)
         sendButton = findViewById(R.id.send_button)
         messageLog = findViewById(R.id.message_log)
@@ -103,9 +106,6 @@ class MainActivity : AppCompatActivity() {
         roleSelection.setOnCheckedChangeListener { _, checkedId ->
             isServerMode = checkedId == R.id.radio_server
             updateUiForMode()
-            if (hasValidSharedSecret()) {
-                autoStartMatching()
-            }
         }
     }
 
@@ -116,58 +116,72 @@ class MainActivity : AppCompatActivity() {
             override fun afterTextChanged(s: Editable?) {
                 currentSecretKey = s?.toString() ?: ""
                 viewModel.updateSharedSecret(currentSecretKey)
-                if (hasValidSharedSecret()) {
-                    autoStartMatching()
-                }
+                updateUiForMode()
             }
         })
     }
 
-    private fun autoStartMatching() {
-        val state = viewModel.connectionState.value
-        if (matchingStarted) return
-        if (state !is ConnectionState.Idle) return
-        matchingStarted = true
-        val repository = viewModel.startMatching(isServerMode)
-        LanForegroundService.start(this)
-        bindService()
-        lanService?.setRepository(repository)
+    private fun ensureSession() {
+        // Lazily create the repository + foreground service the first time the
+        // user starts an action.
+        if (viewModel.currentRepository == null) {
+            val repository = viewModel.startMatching(isServerMode)
+            LanForegroundService.start(this)
+            bindService()
+            lanService?.setRepository(repository)
+        }
     }
 
     private fun setupClickListeners() {
         Log.d(TAG, "Setting up click listeners")
+        // Server: 启动服务 / 停止服务. Client: 配对连接 (pairWithServer) / 停止.
         startStopButton.setOnClickListener {
             Log.d(TAG, "Start/Stop button clicked, isServerMode: $isServerMode")
             if (isServerMode) {
                 val state = viewModel.connectionState.value
-                when (state) {
-                    is ConnectionState.Connected -> {
-                        matchingStarted = false
-                        viewModel.stopServer()
-                        LanForegroundService.stop(this)
-                    }
-                    is ConnectionState.Idle -> {
-                        lifecycleScope.launch {
-                            viewModel.startServer()
-                        }
-                        LanForegroundService.start(this)
-                        bindService()
-                    }
-                    is ConnectionState.Connecting -> {
-                        matchingStarted = false
-                        viewModel.stopServer()
-                        LanForegroundService.stop(this)
-                    }
-                    else -> {}
+                if (state is ConnectionState.Idle) {
+                    lifecycleScope.launch { viewModel.startServer() }
+                    LanForegroundService.start(this)
+                    bindService()
+                } else {
+                    viewModel.stopServer()
+                    LanForegroundService.stop(this)
                 }
             } else {
-                if (viewModel.connectionState.value is ConnectionState.Discovering) {
+                if (viewModel.connectionState.value is ConnectionState.Discovering ||
+                    viewModel.connectionState.value is ConnectionState.Connecting
+                ) {
                     viewModel.stopDiscovery()
+                } else if (hasValidSharedSecret()) {
+                    ensureSession()
+                    lifecycleScope.launch { viewModel.startDiscovery() }
                 } else {
-                    lifecycleScope.launch {
-                        viewModel.startDiscovery()
-                    }
+                    Toast.makeText(this, "请输入 6 位 PIN", Toast.LENGTH_SHORT).show()
                 }
+            }
+            updateUiForMode()
+        }
+
+        // Server only: 开启配对 (输 PIN) / 关闭配对.
+        pairingButton.setOnClickListener {
+            if (!hasValidSharedSecret()) {
+                Toast.makeText(this, "请输入 6 位 PIN", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (viewModel.pairingActive.value) {
+                viewModel.stopPairing()
+            } else {
+                viewModel.startPairing()
+            }
+            updateUiForMode()
+        }
+
+        // Client only: 重连 (reconnectLastServer, no PIN).
+        directConnectButton.setOnClickListener {
+            Log.d(TAG, "Reconnect button clicked")
+            if (viewModel.connectionState.value is ConnectionState.Idle) {
+                ensureSession()
+                viewModel.reconnectLastServer()
             }
         }
 
@@ -185,17 +199,25 @@ class MainActivity : AppCompatActivity() {
         if (!::viewModel.isInitialized) return
 
         Log.d(TAG, "Updating UI for mode: ${if (isServerMode) "Server" else "Client"}")
+        val state = viewModel.connectionState.value
+        val serverRunning = state !is ConnectionState.Idle && state !is ConnectionState.Error
         if (isServerMode) {
             peerListContainer.isVisible = false
-            startStopButton.text = when (viewModel.connectionState.value) {
-                is ConnectionState.Connected -> "停止服务"
-                else -> "开始匹配"
-            }
+            directConnectButton.isVisible = false
+            // 启动服务 / 停止服务
+            startStopButton.text = if (serverRunning) "停止服务" else "启动服务"
+            // 开启配对 / 关闭配对 — only meaningful once the server is running.
+            pairingButton.isVisible = serverRunning
+            pairingButton.text = if (viewModel.pairingActive.value) "关闭配对" else "开启配对（输 PIN）"
         } else {
             peerListContainer.isVisible = true
-            startStopButton.text = when (viewModel.connectionState.value) {
-                is ConnectionState.Discovering -> "停止发现"
-                else -> "开始匹配"
+            pairingButton.isVisible = false
+            // 重连 — visible when a stored credential exists.
+            directConnectButton.isVisible = viewModel.hasPairingCredential.value
+            // 配对连接 / 停止
+            startStopButton.text = when (state) {
+                is ConnectionState.Discovering, is ConnectionState.Connecting -> "停止"
+                else -> "配对连接"
             }
         }
     }
@@ -236,6 +258,18 @@ class MainActivity : AppCompatActivity() {
                         updateUiForMode()
                     }
                 }
+                launch {
+                    viewModel.hasPairingCredential.collect {
+                        // Reconnect button visibility depends on stored credential + client mode.
+                        updateUiForMode()
+                    }
+                }
+                launch {
+                    viewModel.pairingActive.collect {
+                        // Refresh the pairing button label when the window toggles.
+                        updateUiForMode()
+                    }
+                }
             }
         }
     }
@@ -243,23 +277,12 @@ class MainActivity : AppCompatActivity() {
     private fun updateConnectionState(state: ConnectionState) {
         Log.d(TAG, "Connection state changed to: ${state::class.simpleName}")
         when (state) {
-            is ConnectionState.Connected -> {
-                matchingStarted = false
-                progressBar.visibility = ProgressBar.GONE
-                startStopButton.isEnabled = true
-            }
-            is ConnectionState.Connecting, is ConnectionState.Discovering -> {
+            is ConnectionState.Connecting, is ConnectionState.Discovering ->
                 progressBar.visibility = ProgressBar.VISIBLE
-                startStopButton.isEnabled = true
-            }
-            else -> {
-                if (state is ConnectionState.Error) {
-                    matchingStarted = false
-                }
+            else ->
                 progressBar.visibility = ProgressBar.GONE
-                startStopButton.isEnabled = true
-            }
         }
+        startStopButton.isEnabled = true
         updateUiForMode()
     }
 

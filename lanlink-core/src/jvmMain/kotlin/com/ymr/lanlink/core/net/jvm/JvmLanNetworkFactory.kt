@@ -1,6 +1,5 @@
 package com.ymr.lanlink.core.net.jvm
 
-import com.ymr.lanlink.core.data.auth.InMemoryAuthProvider
 import com.ymr.lanlink.core.data.discovery.UdpDiscoveryClient
 import com.ymr.lanlink.core.data.discovery.UdpDiscoveryServer
 import com.ymr.lanlink.core.data.socket.TcpSocketClient
@@ -22,8 +21,19 @@ import com.ymr.lanlink.core.platform.deviceName
  */
 class JvmLanNetworkFactory : LanNetworkFactory {
 
-    override fun createServer(pin: String): LanServer =
-        TcpSocketServer(port = 0, authProvider = InMemoryAuthProvider(pin))
+    override fun createServer(
+        pairingRegistry: com.ymr.lanlink.core.domain.pairing.PairingRegistry,
+        serverDeviceId: String,
+        serverName: String,
+    ): LanServer =
+        TcpSocketServer(
+            port = 0,
+            // Pairing window starts closed; opened later via setPairingPin().
+            authProvider = null,
+            pairingRegistry = pairingRegistry,
+            serverDeviceId = serverDeviceId,
+            serverName = serverName,
+        )
 
     override fun createClient(): LanClient =
         TcpSocketClient()

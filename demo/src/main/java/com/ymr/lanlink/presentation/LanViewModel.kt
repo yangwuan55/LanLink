@@ -3,11 +3,13 @@ package com.ymr.lanlink.presentation
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ymr.lanlink.data.pairing.SharedPrefsPairingCredentialStore
 import com.ymr.lanlink.data.repository.LanRepository
 import com.ymr.lanlink.core.domain.model.ConnectionState
 import com.ymr.lanlink.core.domain.model.LanMessage
 import com.ymr.lanlink.core.domain.model.PeerInfo
 import com.ymr.lanlink.core.net.android.AndroidLanNetworkFactory
+import com.ymr.lanlink.core.service.PinConnectionEvent
 import com.ymr.lanlink.core.service.PinConnectionServiceImpl
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -53,18 +55,37 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    /** Whether a saved pairing credential exists and reconnect is available. */
+    private val _hasPairingCredential = MutableStateFlow(false)
+    val hasPairingCredential: StateFlow<Boolean> = _hasPairingCredential.asStateFlow()
+
+    /** Whether the server PIN pairing window is currently open. */
+    private val _pairingActive = MutableStateFlow(false)
+    val pairingActive: StateFlow<Boolean> = _pairingActive.asStateFlow()
+
     data class UiState(
         val isServerMode: Boolean = false,
         val statusMessage: String = "Ready",
         val errorMessage: String? = null
     )
 
+    // SharedPreferences-backed store: the service auto-saves/clears the credential;
+    // this instance also drives the reconnect button via hasCredential().
+    private val credentialStore by lazy {
+        SharedPrefsPairingCredentialStore(getApplication())
+    }
+
     fun initialize(repository: LanRepository? = null) {
         if (isTestMode) return
+        _hasPairingCredential.value = credentialStore.hasCredential()
         if (repository != null) {
             this.repository = repository
         } else {
-            val service = PinConnectionServiceImpl(AndroidLanNetworkFactory())
+            // Inject the persistent store so reconnectLastServer() survives restarts.
+            val service = PinConnectionServiceImpl(
+                AndroidLanNetworkFactory(),
+                pairingCredentialStore = credentialStore,
+            )
             this.repository = LanRepository(service)
         }
         observeRepositoryState()
@@ -138,6 +159,34 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+
+        // The injected store already persists/clears the credential; here we only
+        // mirror its presence for the UI and surface revocation messaging.
+        viewModelScope.launch {
+            repo.events.collect { event ->
+                when (event) {
+                    is PinConnectionEvent.PairingCredentialIssued -> {
+                        _hasPairingCredential.value = true
+                    }
+                    is PinConnectionEvent.PairingCredentialUpdated -> {
+                        _hasPairingCredential.value = true
+                    }
+                    is PinConnectionEvent.AuthFailed -> {
+                        if (event.reason == "PAIRING_REVOKED") {
+                            _hasPairingCredential.value = false
+                            _uiState.update { it.copy(errorMessage = "配对已被撤销，请重新 PIN 配对") }
+                        }
+                    }
+                    else -> Unit
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            repo.pairingActive.collect { active ->
+                _pairingActive.value = active
+            }
+        }
     }
 
     private fun updateUiStateFromConnection(state: ConnectionState) {
@@ -155,11 +204,12 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Server: bind the listener + advertise. Does NOT open the PIN window. */
     fun startServer() {
         viewModelScope.launch {
             _uiState.update { it.copy(isServerMode = true, statusMessage = "Starting server...") }
             _authState.value = AuthState.Authenticating
-            repository?.startServer(_sharedSecret.value)
+            repository?.startServer()
         }
     }
 
@@ -169,11 +219,24 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         _authState.value = AuthState.Idle
     }
 
+    /** Server: open the PIN pairing window with the entered secret. */
+    fun startPairing() {
+        repository?.startPairing(_sharedSecret.value)
+        _uiState.update { it.copy(statusMessage = "配对窗口已开启") }
+    }
+
+    /** Server: close the PIN pairing window. */
+    fun stopPairing() {
+        repository?.stopPairing()
+        _uiState.update { it.copy(statusMessage = "配对窗口已关闭") }
+    }
+
+    /** Client: first-time PIN pairing (discover + connect + issue credential). */
     fun startDiscovery() {
         viewModelScope.launch {
             _uiState.update { it.copy(isServerMode = false, statusMessage = "Connecting...") }
             _authState.value = AuthState.Authenticating
-            repository?.connectServer(_sharedSecret.value)
+            repository?.pairWithServer(_sharedSecret.value)
         }
     }
 
@@ -186,7 +249,10 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(isServerMode = isServer, statusMessage = "Starting matching...") }
         _authState.value = AuthState.Authenticating
         val repo = repository ?: run {
-            val service = PinConnectionServiceImpl(AndroidLanNetworkFactory())
+            val service = PinConnectionServiceImpl(
+                AndroidLanNetworkFactory(),
+                pairingCredentialStore = credentialStore,
+            )
             LanRepository(service).also {
                 repository = it
                 observeRepositoryState()
@@ -194,12 +260,20 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             if (isServer) {
-                repo.startServer(_sharedSecret.value)
+                repo.startServer()
             } else {
-                repo.connectServer(_sharedSecret.value)
+                repo.pairWithServer(_sharedSecret.value)
             }
         }
         return repo
+    }
+
+    /** Client: reconnect to the most recently paired server, no PIN required. */
+    fun reconnectLastServer() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(statusMessage = "重连中...") }
+            repository?.reconnectLastServer()
+        }
     }
 
     fun connectToPeer(peer: PeerInfo) {

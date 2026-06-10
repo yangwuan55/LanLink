@@ -103,9 +103,23 @@
     </LinearLayout>
 
     <Button
+        android:id="@+id/pairing_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="开启配对"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/direct_connect_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="重连"
+        android:visibility="gone" />
+
+    <Button
         android:id="@+id/start_stop_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="开始匹配" />
+        android:text="启动服务" />
 
 </LinearLayout>

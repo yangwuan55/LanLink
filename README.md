@@ -39,8 +39,8 @@ Both devices agree on a 6‑digit PIN. One **hosts**, the other **joins**. Disco
 sequenceDiagram
     participant A as Device A (Host)
     participant B as Device B (Join)
-    A->>A: startServer(pin) — opens TCP server + advertises over UDP/NSD
-    B->>B: connectServer(pin) — scans for advertised peers
+    A->>A: startServer() + startPairing(pin) — TCP server + UDP/NSD advertise, PIN window open
+    B->>B: pairWithServer(pin) — scans for advertised peers
     B-->>A: TCP connect
     B->>A: AuthRequest (PIN)
     A->>B: AuthResponse (accepted / rejected)
@@ -140,11 +140,13 @@ Declare the permissions discovery and sockets need:
 // AndroidLanNetworkFactory supplies the Ktor-backed transport + discovery.
 val service: PinConnectionService = PinConnectionServiceImpl(AndroidLanNetworkFactory())
 
-// Host one side…
-service.startServer(pin = "123456")
+// Host one side: start the server, then open a PIN pairing window.
+service.startServer()                 // listen + advertise; accepts token reconnects
+service.startPairing(pin = "123456")  // open the PIN window for new pairings
+// service.stopPairing()              // close it once paired
 
-// …join from the other.
-service.connectServer(pin = "123456")
+// …join from the other (first-time PIN pairing).
+service.pairWithServer(pin = "123456")
 ```
 
 ### Observe state, messages, and events
@@ -188,8 +190,12 @@ service.send(type = TYPE_CHAT, data = "Hello!".encodeToByteArray())
 | `connectionState: StateFlow<PinConnectionState>` | Idle → Discovering → Connecting → Connected / Error |
 | `messageFlow: SharedFlow<TypedMessage>` | Inbound frames (`type` tag + raw `payload` bytes) |
 | `eventFlow: SharedFlow<PinConnectionEvent>` | Peer connected/disconnected, auth failed |
-| `startServer(pin)` | Host: open the TCP server and advertise it |
-| `connectServer(pin)` | Join: discover and connect to a host |
+| `pairingActive: StateFlow<Boolean>` | Whether the server PIN pairing window is open |
+| `startServer()` | Host: open the TCP server + advertise; accept token reconnects |
+| `startPairing(pin)` | Host: open the PIN pairing window (call after `startServer()`) |
+| `stopPairing()` | Host: close the PIN pairing window (connected peers/token reconnects unaffected) |
+| `pairWithServer(pin)` | Join: first-time PIN pairing (discover + connect + issue credential) |
+| `reconnectLastServer()` | Join: reconnect to the last paired server, no PIN required |
 | `send(type, data)` | Send a typed frame to the peer |
 | `disconnect()` | Tear down the session |
 
@@ -206,6 +212,81 @@ class TokenAuthProvider(private val token: ByteArray) : AuthProvider {
 ```
 
 Pass your provider through a custom `LanNetworkFactory` (see `AndroidLanNetworkFactory` for the wiring). The built-in `InMemoryAuthProvider` validates a 6‑digit PIN and locks out after repeated failures; `NoOpAuthProvider` accepts everyone (tests only).
+
+---
+
+## Pairing credential & direct reconnect
+
+The pairing window and the service lifecycle are decoupled. After `startServer()` the host immediately accepts **token reconnects** from already-paired clients; it accepts **new PIN pairings only while a window is open** (`startPairing(pin)` … `stopPairing()`).
+
+On the client, a successful `pairWithServer(pin)` issues a credential that the service **auto-stores** in the injected `PairingCredentialStore`. The next launch just calls `reconnectLastServer()` — no PIN, and the app no longer hands the blob back manually.
+
+```kotlin
+// Inject a persistent store so the credential survives process restarts.
+val service = PinConnectionServiceImpl(
+    AndroidLanNetworkFactory(),
+    pairingCredentialStore = SharedPrefsPairingCredentialStore(context), // your impl
+)
+
+// Server: open/close the pairing window around the first-time pairing.
+service.startServer()
+service.startPairing(pin = "123456")
+service.pairingActive.collect { open -> /* reflect window state in UI */ }
+// …once the client has paired:
+service.stopPairing()
+
+// Credential lifecycle is automatic; observe events only if you want UI feedback.
+service.eventFlow.collect { event ->
+    when (event) {
+        is PinConnectionEvent.PairingCredentialIssued -> { /* stored automatically */ }
+        is PinConnectionEvent.PairingCredentialUpdated -> { /* stored automatically */ }
+        is PinConnectionEvent.AuthFailed -> {
+            if (event.reason == "PAIRING_REVOKED") { /* store already cleared; fall back to PIN */ }
+        }
+        else -> Unit
+    }
+}
+
+// Client: reconnect without a PIN. Errors with reason "no stored pairing" if nothing is stored.
+service.reconnectLastServer()
+// First-time pairing instead:
+service.pairWithServer(pin = "123456")
+```
+
+### Pairing model
+
+| Side | Cardinality | Storage |
+|---|---|---|
+| Server | **1 : N** — one record per paired client, keyed by `pairingId` | Inject a persistent `PairingRegistry` (default: in-memory) |
+| Client | **1 : 1** — one credential blob (the last paired server) | Inject a persistent `PairingCredentialStore` (default: in-memory); the service auto-saves/clears it |
+
+The flow when the server's IP/port changes: the library automatically falls back to UDP discovery, performs the token handshake, persists the refreshed blob into the store, and emits `PairingCredentialUpdated` for observability.
+
+### Security boundaries
+
+- The shared secret is generated by `secureRandomBytes(32)` and **never travels over the network**. Only a HMAC proof derived from it does.
+- Each connection uses fresh nonces, preventing replay attacks.
+- Authentication is mutual (both sides verify a proof), preventing server impersonation.
+- **Business frames are not encrypted** — HMAC provides authentication only. Add TLS or a session key layer if confidentiality is required.
+
+### Storing the secret safely
+
+`localData` is a Base64-encoded protobuf blob that embeds the shared secret. Protect it at rest:
+
+```kotlin
+// Android: use EncryptedSharedPreferences (Jetpack Security)
+val masterKey = MasterKey.Builder(context)
+    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+    .build()
+val encryptedPrefs = EncryptedSharedPreferences.create(
+    context, "secure_lanlink_prefs", masterKey,
+    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+)
+encryptedPrefs.edit().putString("pairing_credential", event.localData).apply()
+```
+
+For highest security, store the secret inside the Android Keystore directly. The demo uses plain `SharedPreferences` for clarity.
 
 ---
 

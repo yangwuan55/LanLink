@@ -9,7 +9,7 @@ plugins {
 // keeps local publishToMavenLocal output consistent with what JitPack builds.
 // JitPack overrides the version with the git tag at build time.
 group = 'com.github.yangwuan55'
-version = '0.1.2'
+version = '0.1.3'
 
 kotlin {
     androidLibrary {
