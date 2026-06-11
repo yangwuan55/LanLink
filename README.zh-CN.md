@@ -121,7 +121,7 @@ cd LanLink
 maven { url 'https://jitpack.io' }
 
 // app/build.gradle
-implementation 'com.github.yangwuan55.LanLink:lanlink-core:0.1.3'
+implementation 'com.github.yangwuan55.LanLink:lanlink-core:0.1.4'
 ```
 
 或作为本地模块：`include(":lanlink-core")` + `implementation project(':lanlink-core')`。
@@ -222,10 +222,17 @@ class TokenAuthProvider(private val token: ByteArray) : AuthProvider {
 client 端 `pairWithServer(pin)` 成功后，服务会把签发的凭据**自动存入**注入的 `PairingCredentialStore`。下次启动只需调用 `reconnectLastServer()`——无需 PIN，App 也不必再手动回传 blob。
 
 ```kotlin
-// 注入持久化 store，使凭据跨进程重启仍可用。
+// 两侧都要注入持久化 store，配对才能跨进程重启存活：
+// server 端不注入持久化 PairingRegistry 的话，进程重启会忘掉所有已配对
+// client，token 重连一律返回 PAIRING_REVOKED。
+// commonMain 内置了 DataStore 实现；DataStore 实例由 App 持有
+// （每个文件一个实例，进程级单例）。
+val Context.pairingDataStore by preferencesDataStore(name = "lanlink_pairing")
+
 val service = PinConnectionServiceImpl(
     AndroidLanNetworkFactory(),
-    pairingCredentialStore = SharedPrefsPairingCredentialStore(context), // 你的实现
+    pairingRegistry = DataStorePairingRegistry(context.pairingDataStore),               // server 侧（1:N）
+    pairingCredentialStore = DataStorePairingCredentialStore(context.pairingDataStore), // client 侧（1:1）
 )
 
 // Server：围绕首次配对开启/关闭配对窗口。
@@ -257,8 +264,8 @@ service.pairWithServer(pin = "123456")
 
 | 端 | 基数 | 存储 |
 |---|---|---|
-| Server | **1 : N** —— 每个已配对的 client 一条记录，以 `pairingId` 为主键 | 注入持久化 `PairingRegistry`（默认内存实现） |
-| Client | **1 : 1** —— 一份凭据 blob（最近配对的 server） | 注入持久化 `PairingCredentialStore`（默认内存实现）；服务自动保存/清除 |
+| Server | **1 : N** —— 每个已配对的 client 一条记录，以 `pairingId` 为主键 | 注入持久化 `PairingRegistry`（默认内存实现；内置 `DataStorePairingRegistry`） |
+| Client | **1 : 1** —— 一份凭据 blob（最近配对的 server） | 注入持久化 `PairingCredentialStore`（默认内存实现；内置 `DataStorePairingCredentialStore`）；服务自动保存/清除 |
 
 当 server 的 IP/端口发生变化时：库会自动回退到 UDP 发现，完成 token 握手后把刷新的 blob 写回 store，并发出 `PairingCredentialUpdated` 事件供观察。
 
@@ -334,7 +341,7 @@ LanLink/
 - [ ] 通过新的 `LanNetworkFactory` 实现，新增更多 Kotlin Multiplatform target（桌面/JVM、iOS）
 - [ ] TLS / 加密传输
 - [ ] 在类型化通道之上提供文件与二进制负载的辅助工具
-- [x] 已发布到 JitPack（[`0.1.3`](https://jitpack.io/#yangwuan55/LanLink)）
+- [x] 已发布到 JitPack（[`0.1.4`](https://jitpack.io/#yangwuan55/LanLink)）
 
 ---
 

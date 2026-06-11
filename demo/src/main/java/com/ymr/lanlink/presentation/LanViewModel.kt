@@ -1,20 +1,20 @@
 package com.ymr.lanlink.presentation
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.ymr.lanlink.data.pairing.SharedPrefsPairingCredentialStore
 import com.ymr.lanlink.data.repository.LanRepository
+import com.ymr.lanlink.data.session.LanSessionManager
 import com.ymr.lanlink.core.domain.model.ConnectionState
 import com.ymr.lanlink.core.domain.model.LanMessage
 import com.ymr.lanlink.core.domain.model.PeerInfo
-import com.ymr.lanlink.core.net.android.AndroidLanNetworkFactory
 import com.ymr.lanlink.core.service.PinConnectionEvent
-import com.ymr.lanlink.core.service.PinConnectionServiceImpl
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 private const val MAX_MESSAGES = 500
+private const val TAG = "LanViewModel"
 
 class LanViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -29,6 +29,7 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
 
     private var repository: LanRepository? = null
     private var isTestMode = false
+    private var observed = false
 
     val currentRepository: LanRepository?
         get() = repository
@@ -69,24 +70,26 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
         val errorMessage: String? = null
     )
 
-    // SharedPreferences-backed store: the service auto-saves/clears the credential;
-    // this instance also drives the reconnect button via hasCredential().
+    // Process-wide credential store (same single DataStore the session manager
+    // injects into the service). load() drives the reconnect button; the service
+    // itself auto-saves/clears the credential. Persists across process restarts.
     private val credentialStore by lazy {
-        SharedPrefsPairingCredentialStore(getApplication())
+        LanSessionManager.credentialStore(getApplication())
     }
 
     fun initialize(repository: LanRepository? = null) {
         if (isTestMode) return
-        _hasPairingCredential.value = credentialStore.hasCredential()
+        viewModelScope.launch {
+            _hasPairingCredential.value = credentialStore.load() != null
+        }
+        // The repository is a process-level singleton: acquire (don't construct)
+        // it so Activity recreation reuses the one server instead of orphaning it.
         if (repository != null) {
+            Log.i(TAG, "initialize: using injected (test) repository@${System.identityHashCode(repository).toString(16)}")
             this.repository = repository
         } else {
-            // Inject the persistent store so reconnectLastServer() survives restarts.
-            val service = PinConnectionServiceImpl(
-                AndroidLanNetworkFactory(),
-                pairingCredentialStore = credentialStore,
-            )
-            this.repository = LanRepository(service)
+            Log.i(TAG, "initialize: acquiring singleton repository from LanSessionManager")
+            this.repository = LanSessionManager.get(getApplication())
         }
         observeRepositoryState()
     }
@@ -138,6 +141,10 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun observeRepositoryState() {
         val repo = repository ?: return
+        // The repository is a process singleton reused across Activity recreation;
+        // guard against subscribing twice within the same ViewModel.
+        if (observed) return
+        observed = true
 
         viewModelScope.launch {
             repo.connectionState.collect { state ->
@@ -248,16 +255,9 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
     fun startMatching(isServer: Boolean): LanRepository {
         _uiState.update { it.copy(isServerMode = isServer, statusMessage = "Starting matching...") }
         _authState.value = AuthState.Authenticating
-        val repo = repository ?: run {
-            val service = PinConnectionServiceImpl(
-                AndroidLanNetworkFactory(),
-                pairingCredentialStore = credentialStore,
-            )
-            LanRepository(service).also {
-                repository = it
-                observeRepositoryState()
-            }
-        }
+        val repo = LanSessionManager.get(getApplication())
+        repository = repo
+        observeRepositoryState()
         viewModelScope.launch {
             if (isServer) {
                 repo.startServer()
@@ -297,6 +297,10 @@ class LanViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
-        repository?.close()
+        // Do NOT close the repository here. It is a process-level singleton owned by
+        // LanSessionManager; the START_STICKY foreground service keeps it alive across
+        // Activity recreation (rotation, backgrounding). Closing it here would kill the
+        // running server. Teardown happens only on the explicit stop-service path
+        // (LanForegroundService.onDestroy -> LanSessionManager.close()).
     }
 }

@@ -51,6 +51,9 @@ dependencies {
     // Coroutines (for ViewModel)
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
 
+    // DataStore (persistent pairing state; provides the Context delegate)
+    implementation 'androidx.datastore:datastore-preferences:1.2.1'
+
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2'
     testImplementation 'org.mockito:mockito-core:5.8.0'

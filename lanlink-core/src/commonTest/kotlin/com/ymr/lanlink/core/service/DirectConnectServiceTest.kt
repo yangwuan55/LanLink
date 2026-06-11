@@ -237,6 +237,128 @@ class DirectConnectServiceTest {
     }
 
     @Test
+    fun directConnect_legacy_credential_without_serverDeviceId_uses_name_fallback() = runBlocking {
+        // Old credential issued by a server that shipped no serverDeviceId: reconnect
+        // must still work via the legacy name/any-peer discovery fallback.
+        val registry = InMemoryPairingRegistry()
+        val secret = secureRandomBytes(32)
+        val store = InMemoryPairingCredentialStore()
+        // Pair against a world with an EMPTY serverDeviceId, so the credential lacks one.
+        val pairWorld = FakeServerWorld(registry, serverDeviceId = "", serverName = "RemotePeer", issueSecret = secret, issuePairingId = "pairing-1")
+        run {
+            val factory = FakeLanNetworkFactory(authSucceeds = true, peerToDiscover = DiscoveredPeer("RemotePeer", "10.0.0.5", 4242), world = pairWorld)
+            val service = PinConnectionServiceImpl(factory, pairingRegistry = registry, pairingCredentialStore = store)
+            val events = mutableListOf<PinConnectionEvent>()
+            val collector = launch(start = CoroutineStart.UNDISPATCHED) { service.eventFlow.toList(events) }
+            service.pairWithServer(pin)
+            awaitNotNull { events.filterIsInstance<PinConnectionEvent.PairingCredentialIssued>().firstOrNull() }
+            service.disconnect()
+            collector.cancel()
+        }
+        assertEquals("", decodePairingCredential(Base64.decode(store.load()!!)).serverDeviceId)
+
+        // Reconnect: stored last host dead; discovery offers a peer with NO id but a
+        // matching name -> legacy fallback connects.
+        val world = FakeServerWorld(registry, "", "RemotePeer", secret, "pairing-1")
+        val factory = FakeLanNetworkFactory(
+            authSucceeds = true,
+            peerToDiscover = DiscoveredPeer("RemotePeer", "10.0.0.55", 6500),
+            world = world,
+            reachableHosts = setOf("10.0.0.55"),
+        )
+        val service = PinConnectionServiceImpl(factory, pairingRegistry = registry, pairingCredentialStore = store)
+
+        service.reconnectLastServer()
+
+        val connected = awaitNotNull { service.connectionState.value as? PinConnectionState.Connected }
+        assertNotNull(connected)
+        assertEquals("RemotePeer", connected!!.peerName)
+        service.disconnect()
+    }
+
+    @Test
+    fun directConnect_matches_by_serverDeviceId_even_when_name_differs() = runBlocking {
+        // Server restarted on a new port AND its broadcast name differs from what was
+        // stored, but the stable serverDeviceId still matches -> reconnect must find it.
+        val registry = InMemoryPairingRegistry()
+        val secret = secureRandomBytes(32)
+        val store = InMemoryPairingCredentialStore()
+        // Paired with serverDeviceId "srv-device" (FakeServerWorld default) at 10.0.0.5.
+        pairAndGetLocalData(registry, DiscoveredPeer("RemotePeer", "10.0.0.5", 4242), secret, store)
+
+        val world = FakeServerWorld(registry, "srv-device", "RemotePeer", secret, "pairing-1")
+        val factory = FakeLanNetworkFactory(
+            authSucceeds = true,
+            // New address, DIFFERENT name, SAME serverDeviceId as the credential.
+            peerToDiscover = DiscoveredPeer("RenamedHost", "10.0.0.88", 7100, "srv-device"),
+            world = world,
+            reachableHosts = setOf("10.0.0.88"),
+        )
+        val service = PinConnectionServiceImpl(factory, pairingRegistry = registry, pairingCredentialStore = store)
+        val events = mutableListOf<PinConnectionEvent>()
+        val collector = launch(start = CoroutineStart.UNDISPATCHED) { service.eventFlow.toList(events) }
+
+        service.reconnectLastServer()
+
+        val connected = awaitNotNull { service.connectionState.value as? PinConnectionState.Connected }
+        assertNotNull(connected)
+        assertNotNull(awaitNotNull { factory.scanner?.takeIf { it.started } })
+        // Connected to the new port discovered by identity, and credential refreshed.
+        awaitNotNull { events.filterIsInstance<PinConnectionEvent.PairingCredentialUpdated>().firstOrNull() }
+        val cred = decodePairingCredential(Base64.decode(store.load()!!))
+        assertEquals("10.0.0.88", cred.lastHost)
+        assertEquals(7100, cred.lastPort)
+        service.disconnect()
+        collector.cancel()
+    }
+
+    @Test
+    fun directConnect_falls_back_to_discovery_when_fast_path_TIMES_OUT() = runBlocking {
+        // Regression: the real TcpSocketClient retries a refused address with backoff,
+        // so the fast-path connect does not fail fast — it runs past
+        // directConnectTimeoutMs and the service's withTimeout fires a
+        // TimeoutCancellationException. That exception MUST NOT be rethrown as scope
+        // cancellation (which silently killed the reconnect coroutine and left the UI
+        // stuck on "Connecting"); it must degrade to Unreachable and fall back to
+        // discovery.
+        val registry = InMemoryPairingRegistry()
+        val secret = secureRandomBytes(32)
+        val store = InMemoryPairingCredentialStore()
+        // Paired at 10.0.0.5 (the stored lastHost), which is now dead AND slow to fail.
+        pairAndGetLocalData(registry, DiscoveredPeer("RemotePeer", "10.0.0.5", 4242), secret, store)
+
+        val world = FakeServerWorld(registry, "srv-device", "RemotePeer", secret, "pairing-1")
+        val factory = FakeLanNetworkFactory(
+            authSucceeds = true,
+            // Discovery resolves the server at a NEW address with the same identity.
+            peerToDiscover = DiscoveredPeer("RemotePeer", "10.0.0.77", 6000, "srv-device"),
+            world = world,
+            reachableHosts = setOf("10.0.0.77"),
+            // The dead stored host hangs far longer than directConnectTimeoutMs below.
+            unreachableHangMs = 60_000,
+        )
+        val service = PinConnectionServiceImpl(
+            factory,
+            pairingRegistry = registry,
+            pairingCredentialStore = store,
+            // Small budget so the hanging fast path times out quickly in-test.
+            directConnectTimeoutMs = 200,
+        )
+
+        service.reconnectLastServer()
+
+        // Must end Connected via discovery, NOT stuck forever on Connecting.
+        val connected = awaitNotNull { service.connectionState.value as? PinConnectionState.Connected }
+        assertNotNull(connected, "fast-path timeout must fall back to discovery, not silently die")
+        assertEquals("RemotePeer", connected!!.peerName)
+        assertNotNull(awaitNotNull { factory.scanner?.takeIf { it.started } })
+        val cred = decodePairingCredential(Base64.decode(store.load()!!))
+        assertEquals("10.0.0.77", cred.lastHost)
+        assertEquals(6000, cred.lastPort)
+        service.disconnect()
+    }
+
+    @Test
     fun directConnect_falls_back_to_discovery_when_fast_path_unreachable() = runBlocking {
         val registry = InMemoryPairingRegistry()
         val secret = secureRandomBytes(32)
@@ -247,8 +369,9 @@ class DirectConnectServiceTest {
         val world = FakeServerWorld(registry, "srv-device", "RemotePeer", secret, "pairing-1")
         val factory = FakeLanNetworkFactory(
             authSucceeds = true,
-            // Discovery resolves the server at a NEW address.
-            peerToDiscover = DiscoveredPeer("RemotePeer", "10.0.0.77", 6000),
+            // Discovery resolves the server at a NEW address, advertising the same
+            // stable serverDeviceId so identity matching finds it.
+            peerToDiscover = DiscoveredPeer("RemotePeer", "10.0.0.77", 6000, "srv-device"),
             world = world,
             // Only the new address is reachable; the stored last host is dead.
             reachableHosts = setOf("10.0.0.77"),

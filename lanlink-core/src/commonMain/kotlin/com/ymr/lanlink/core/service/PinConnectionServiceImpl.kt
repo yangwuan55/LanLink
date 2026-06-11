@@ -64,11 +64,17 @@ class PinConnectionServiceImpl(
     @Volatile private var scanner: DiscoveryScanner? = null
     @Volatile private var sessionScope: CoroutineScope? = null
 
+    // Stable short identifier so every log line can be attributed to one specific
+    // service instance. hashCode is process-stable, collision-tolerant for logging,
+    // and needs no atomics/synchronization in commonMain.
+    private val instanceId = hashCode().toString(16).takeLast(4)
+
     companion object {
         private const val TAG = "PinConnectionServiceImpl"
     }
 
     override fun startServer() {
+        logger.i(TAG, "[$instanceId] startServer()")
         val scope = newScope()
         scope.launch {
             try {
@@ -83,31 +89,35 @@ class PinConnectionServiceImpl(
     }
 
     override fun startPairing(pin: String) {
+        logger.i(TAG, "[$instanceId] startPairing()")
         validatePin(pin)
         val server = lanServer
         if (server == null) {
-            logger.w(TAG, "startPairing called before startServer")
+            logger.w(TAG, "[$instanceId] startPairing called before startServer")
             _connectionState.value = PinConnectionState.Error(null, "startPairing requires startServer first")
             return
         }
         server.setPairingPin(pin)
         _pairingActive.value = true
-        logger.d(TAG, "Pairing window opened")
+        logger.d(TAG, "[$instanceId] Pairing window opened")
     }
 
     override fun stopPairing() {
+        logger.i(TAG, "[$instanceId] stopPairing()")
         // Closing the window does not tear down the session: connected peers and
         // token reconnects keep working.
         lanServer?.setPairingPin(null)
         _pairingActive.value = false
-        logger.d(TAG, "Pairing window closed")
+        logger.d(TAG, "[$instanceId] Pairing window closed")
     }
 
     override fun pairWithServer(pin: String) {
+        logger.i(TAG, "[$instanceId] pairWithServer()")
         launchSession(pin, operation = "pairWithServer") { runClient(pin) }
     }
 
     override fun reconnectLastServer() {
+        logger.i(TAG, "[$instanceId] reconnectLastServer()")
         val scope = newScope()
         scope.launch {
             try {
@@ -128,18 +138,10 @@ class PinConnectionServiceImpl(
     }
 
     override fun disconnect() {
-        logger.d(TAG, "disconnect() called")
+        logger.i(TAG, "[$instanceId] disconnect()")
         sessionScope?.cancel()
         sessionScope = null
-        lanServer?.stop()
-        lanServer = null
-        lanClient?.disconnect()
-        lanClient = null
-        advertiser?.stop()
-        advertiser = null
-        scanner?.stop()
-        scanner = null
-        _pairingActive.value = false
+        releaseResources()
         _connectionState.value = PinConnectionState.Idle
     }
 
@@ -164,13 +166,13 @@ class PinConnectionServiceImpl(
             serverName = serverName,
         ).also { lanServer = it }
         val port = server.start()
-        logger.d(TAG, "TCP server started on port $port")
+        logger.i(TAG, "[$instanceId] runServer: TCP server started on port $port (server=${server::class.simpleName})")
 
-        factory.createAdvertiser(port).also {
+        factory.createAdvertiser(port, serverDeviceId).also {
             advertiser = it
             it.start()
         }
-        logger.d(TAG, "UDP discovery broadcasting on port $port")
+        logger.i(TAG, "[$instanceId] runServer: UDP advertiser created broadcasting servicePort=$port (advertiser=${advertiser?.let { it::class.simpleName }})")
 
         launch { awaitAuthenticatedPeer(server) }
         launch { pipeMessages(server.messages) }
@@ -291,29 +293,43 @@ class PinConnectionServiceImpl(
             }
         }
 
-        // Fallback path: UDP discovery, prefer a peer matching the stored serverName.
+        // Fallback path: UDP discovery. Match the server by its stable identity
+        // (serverDeviceId) so a restart on a new TCP port is still found; fall back
+        // to the legacy serverName match for old credentials that lack an id.
         if (connectedPeer == null) {
             _connectionState.value = PinConnectionState.Discovering(null)
-            val discovered = discoverPeerPreferring(credential.serverName)
-            if (discovered == null) {
-                logger.w(TAG, "Discovery timeout during direct connect")
+            val candidates = discoverPeerCandidates(credential)
+            if (candidates.isEmpty()) {
+                logger.w(TAG, "[$instanceId] Discovery timeout during direct connect (serverDeviceId=${credential.serverDeviceId.ifEmpty { "<none>" }})")
                 _connectionState.value = PinConnectionState.Error(null, "Discovery timeout")
                 return
             }
-            val discoveredPeer = PeerInfo(discovered.name, discovered.host, discovered.port)
-            when (val outcome = tryTokenConnect(discoveredPeer, credential)) {
-                is DirectOutcome.Connected -> {
-                    connectedPeer = discoveredPeer
-                    connectedClient = outcome.client
+            // Try candidates in order (freshest first). Each Unreachable just moves on
+            // to the next live address advertising the same identity.
+            var lastUnreachable: String? = null
+            for (discovered in candidates) {
+                val discoveredPeer = PeerInfo(discovered.name, discovered.host, discovered.port)
+                logger.i(TAG, "[$instanceId] Direct fallback trying ${discovered.serverDeviceId.ifEmpty { "<no-id>" }}@${discovered.host}:${discovered.port}")
+                when (val outcome = tryTokenConnect(discoveredPeer, credential)) {
+                    is DirectOutcome.Connected -> {
+                        connectedPeer = discoveredPeer
+                        connectedClient = outcome.client
+                    }
+                    is DirectOutcome.Revoked -> {
+                        onPairingRevoked()
+                        return
+                    }
+                    is DirectOutcome.Unreachable -> {
+                        logger.d(TAG, "[$instanceId] Candidate ${discovered.host}:${discovered.port} unreachable: ${outcome.reason}")
+                        lastUnreachable = outcome.reason
+                        continue
+                    }
                 }
-                is DirectOutcome.Revoked -> {
-                    onPairingRevoked()
-                    return
-                }
-                is DirectOutcome.Unreachable -> {
-                    _connectionState.value = PinConnectionState.Error(null, outcome.reason)
-                    return
-                }
+                if (connectedPeer != null) break
+            }
+            if (connectedPeer == null) {
+                _connectionState.value = PinConnectionState.Error(null, lastUnreachable ?: "connect failed")
+                return
             }
         }
 
@@ -339,7 +355,7 @@ class PinConnectionServiceImpl(
             // address; the event is still emitted for observability.
             pairingCredentialStore.save(updatedBlob)
             _eventFlow.emit(PinConnectionEvent.PairingCredentialUpdated)
-            logger.d(TAG, "Pairing credential address updated")
+            logger.i(TAG, "[$instanceId] Pairing credential address refreshed ${credential.lastHost}:${credential.lastPort} -> ${peer.host}:${peer.port}")
         }
 
         launch { pipeMessages(client.messages) }
@@ -367,6 +383,12 @@ class PinConnectionServiceImpl(
         try {
             try {
                 withTimeout(directConnectTimeoutMs) { client.connect(PeerInfo(peer.name, peer.host, peer.port)) }
+            } catch (e: TimeoutCancellationException) {
+                // OUR OWN fast-path timeout (the inner client.connect retried past the
+                // budget). This is NOT external scope cancellation — must NOT be
+                // rethrown, or the whole reconnect coroutine dies silently and never
+                // falls back to discovery (it leaves the UI stuck on "Connecting").
+                return DirectOutcome.Unreachable("connect timeout")
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -376,7 +398,17 @@ class PinConnectionServiceImpl(
                 return DirectOutcome.Unreachable("connect failed")
             }
 
-            val result = client.authenticateWithCredential(deviceName(), credential.pairingId, credential.secret)
+            val result = try {
+                client.authenticateWithCredential(deviceName(), credential.pairingId, credential.secret)
+            } catch (e: TimeoutCancellationException) {
+                // A connected-but-stalled server can time out the handshake read.
+                // Same rule: treat as unreachable, never as scope cancellation.
+                return DirectOutcome.Unreachable("handshake timeout")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return DirectOutcome.Unreachable("handshake failed: ${e.message}")
+            }
             return if (result.success) {
                 success = true
                 DirectOutcome.Connected(client)
@@ -401,12 +433,30 @@ class PinConnectionServiceImpl(
         _eventFlow.emit(PinConnectionEvent.AuthFailed(AuthProtocol.REASON_PAIRING_REVOKED))
     }
 
-    private suspend fun discoverPeerPreferring(serverName: String): DiscoveredPeer? {
+    /**
+     * Discovers the target server for a reconnect, returning matching peers ordered
+     * best-first so the caller can try the next candidate if the first is unreachable.
+     *
+     * - When [credential] carries a non-empty serverDeviceId, waits for peers whose
+     *   broadcast id matches and returns those (identity match: survives a port change).
+     * - Otherwise (legacy credential / legacy server with no id on the wire), falls
+     *   back to the old behaviour: prefer a name match, else any discovered peer.
+     */
+    private suspend fun discoverPeerCandidates(credential: PairingCredential): List<DiscoveredPeer> {
         val discovery = factory.createScanner().also { scanner = it }
         discovery.start()
-        return withTimeoutOrNull(discoveryTimeoutMs) {
-            val peers = discovery.discoveredPeers.first { it.isNotEmpty() }
-            peers.firstOrNull { it.name == serverName } ?: peers.first()
+        val targetId = credential.serverDeviceId
+        return if (targetId.isNotEmpty()) {
+            withTimeoutOrNull(discoveryTimeoutMs) {
+                discovery.discoveredPeers.first { peers -> peers.any { it.serverDeviceId == targetId } }
+                    .filter { it.serverDeviceId == targetId }
+            } ?: emptyList()
+        } else {
+            withTimeoutOrNull(discoveryTimeoutMs) {
+                val peers = discovery.discoveredPeers.first { it.isNotEmpty() }
+                val preferred = peers.filter { it.name == credential.serverName }
+                if (preferred.isNotEmpty()) preferred else peers
+            } ?: emptyList()
         }
     }
 
@@ -448,8 +498,48 @@ class PinConnectionServiceImpl(
     }
 
     private fun newScope(): CoroutineScope {
+        logger.i(TAG, "[$instanceId] newScope: new session starting, releasing previous resources")
         sessionScope?.cancel()
+        // The TCP server and discovery components own their own scopes, so
+        // cancelling sessionScope does NOT stop them — they must be released
+        // explicitly here, or a second startServer() leaks the previous server +
+        // advertiser as a ghost instance that keeps accepting and broadcasting
+        // its old port until the process dies (clients then discover and
+        // connect to the stale one).
+        releaseResources()
         return CoroutineScope(ioDispatcher + SupervisorJob()).also { sessionScope = it }
+    }
+
+    /** Stops and clears every live network resource of the current session. */
+    private fun releaseResources() {
+        // Identify exactly which resources are alive so a session switch makes any
+        // ghost server/advertiser that should have died visible in logcat.
+        fun id(o: Any?): String = o?.let { it::class.simpleName + "@" + it.hashCode().toString(16).takeLast(4) } ?: "none"
+        logger.i(
+            TAG,
+            "[$instanceId] releaseResources: stopping server=${id(lanServer)}, advertiser=${id(advertiser)}, scanner=${id(scanner)}, client=${id(lanClient)}"
+        )
+        lanServer?.let {
+            logger.i(TAG, "[$instanceId] releaseResources: stopping server ${id(it)}")
+            it.stop()
+        }
+        lanServer = null
+        lanClient?.let {
+            logger.i(TAG, "[$instanceId] releaseResources: stopping client ${id(it)}")
+            it.disconnect()
+        }
+        lanClient = null
+        advertiser?.let {
+            logger.i(TAG, "[$instanceId] releaseResources: stopping advertiser ${id(it)}")
+            it.stop()
+        }
+        advertiser = null
+        scanner?.let {
+            logger.i(TAG, "[$instanceId] releaseResources: stopping scanner ${id(it)}")
+            it.stop()
+        }
+        scanner = null
+        _pairingActive.value = false
     }
 
     private fun validatePin(pin: String) {

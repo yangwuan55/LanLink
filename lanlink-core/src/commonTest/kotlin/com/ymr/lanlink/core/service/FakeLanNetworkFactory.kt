@@ -15,6 +15,7 @@ import com.ymr.lanlink.core.net.DiscoveryScanner
 import com.ymr.lanlink.core.net.LanClient
 import com.ymr.lanlink.core.net.LanNetworkFactory
 import com.ymr.lanlink.core.net.LanServer
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -185,7 +186,7 @@ class FakeLanClient(
     }
 }
 
-class FakeDiscoveryAdvertiser(val servicePort: Int) : DiscoveryAdvertiser {
+class FakeDiscoveryAdvertiser(val servicePort: Int, val serverDeviceId: String = "") : DiscoveryAdvertiser {
     var started = false
     var stopped = false
     override fun start() { started = true }
@@ -228,31 +229,45 @@ class FakeLanNetworkFactory(
     private val peerToDiscover: DiscoveredPeer? = DiscoveredPeer("RemotePeer", "10.0.0.5", 4242),
     private val world: FakeServerWorld? = null,
     private val reachableHosts: Set<String>? = null,
+    // When set, connecting to a host outside [reachableHosts] HANGS for this long
+    // instead of failing fast. This models the real TcpSocketClient, whose internal
+    // retry-with-backoff loop keeps a connect to a dead address alive past the
+    // service's directConnectTimeoutMs, forcing the withTimeout to fire a
+    // TimeoutCancellationException (regression guard for the silent-death bug).
+    private val unreachableHangMs: Long? = null,
 ) : LanNetworkFactory {
 
     var server: FakeLanServer? = null
+    val servers = mutableListOf<FakeLanServer>()
     var client: FakeLanClient? = null
     val clients = mutableListOf<FakeLanClient>()
     var advertiser: FakeDiscoveryAdvertiser? = null
+    val advertisers = mutableListOf<FakeDiscoveryAdvertiser>()
     var scanner: FakeDiscoveryScanner? = null
 
     override fun createServer(
         pairingRegistry: PairingRegistry,
         serverDeviceId: String,
         serverName: String,
-    ): LanServer = FakeLanServer().also { server = it }
+    ): LanServer = FakeLanServer().also {
+        server = it
+        servers.add(it)
+    }
 
     override fun createClient(): LanClient =
         FakeLanClient(authSucceeds, world).let { c ->
-            val gated = if (reachableHosts == null) c else GatedFakeLanClient(c, reachableHosts)
+            val gated = if (reachableHosts == null) c else GatedFakeLanClient(c, reachableHosts, unreachableHangMs)
             // Track the underlying fake for assertions.
             client = c
             clients.add(c)
             gated
         }
 
-    override fun createAdvertiser(servicePort: Int): DiscoveryAdvertiser =
-        FakeDiscoveryAdvertiser(servicePort).also { advertiser = it }
+    override fun createAdvertiser(servicePort: Int, serverDeviceId: String): DiscoveryAdvertiser =
+        FakeDiscoveryAdvertiser(servicePort, serverDeviceId).also {
+            advertiser = it
+            advertisers.add(it)
+        }
 
     override fun createScanner(): DiscoveryScanner =
         FakeDiscoveryScanner(peerToDiscover).also { scanner = it }
@@ -266,10 +281,16 @@ class FakeLanNetworkFactory(
 class GatedFakeLanClient(
     private val delegate: FakeLanClient,
     private val reachableHosts: Set<String>,
+    private val unreachableHangMs: Long? = null,
 ) : LanClient by delegate {
     override suspend fun connect(peer: PeerInfo) {
         if (peer.host in reachableHosts) {
             delegate.connect(peer)
+        } else if (unreachableHangMs != null) {
+            // Unreachable AND slow: block past the caller's directConnectTimeoutMs so
+            // its withTimeout fires a TimeoutCancellationException, exactly like the
+            // real client retrying a refused address past the budget.
+            delay(unreachableHangMs)
         } else {
             // Unreachable: leave the connection Idle so tryTokenConnect bails out.
             delegate.disconnect()

@@ -121,7 +121,7 @@ From JitPack:
 maven { url 'https://jitpack.io' }
 
 // app/build.gradle
-implementation 'com.github.yangwuan55.LanLink:lanlink-core:0.1.3'
+implementation 'com.github.yangwuan55.LanLink:lanlink-core:0.1.4'
 ```
 
 Or as a local module: `include(":lanlink-core")` + `implementation project(':lanlink-core')`.
@@ -222,10 +222,17 @@ The pairing window and the service lifecycle are decoupled. After `startServer()
 On the client, a successful `pairWithServer(pin)` issues a credential that the service **auto-stores** in the injected `PairingCredentialStore`. The next launch just calls `reconnectLastServer()` — no PIN, and the app no longer hands the blob back manually.
 
 ```kotlin
-// Inject a persistent store so the credential survives process restarts.
+// Inject persistent stores so pairings survive process restarts — on BOTH sides:
+// without a persistent PairingRegistry, a server restart forgets every paired
+// client and token reconnects come back as PAIRING_REVOKED.
+// DataStore-backed implementations ship in commonMain; the App owns the
+// DataStore instance (one per file, process-wide singleton).
+val Context.pairingDataStore by preferencesDataStore(name = "lanlink_pairing")
+
 val service = PinConnectionServiceImpl(
     AndroidLanNetworkFactory(),
-    pairingCredentialStore = SharedPrefsPairingCredentialStore(context), // your impl
+    pairingRegistry = DataStorePairingRegistry(context.pairingDataStore),               // server side (1:N)
+    pairingCredentialStore = DataStorePairingCredentialStore(context.pairingDataStore), // client side (1:1)
 )
 
 // Server: open/close the pairing window around the first-time pairing.
@@ -257,8 +264,8 @@ service.pairWithServer(pin = "123456")
 
 | Side | Cardinality | Storage |
 |---|---|---|
-| Server | **1 : N** — one record per paired client, keyed by `pairingId` | Inject a persistent `PairingRegistry` (default: in-memory) |
-| Client | **1 : 1** — one credential blob (the last paired server) | Inject a persistent `PairingCredentialStore` (default: in-memory); the service auto-saves/clears it |
+| Server | **1 : N** — one record per paired client, keyed by `pairingId` | Inject a persistent `PairingRegistry` (default: in-memory; built-in: `DataStorePairingRegistry`) |
+| Client | **1 : 1** — one credential blob (the last paired server) | Inject a persistent `PairingCredentialStore` (default: in-memory; built-in: `DataStorePairingCredentialStore`); the service auto-saves/clears it |
 
 The flow when the server's IP/port changes: the library automatically falls back to UDP discovery, performs the token handshake, persists the refreshed blob into the store, and emits `PairingCredentialUpdated` for observability.
 
@@ -334,7 +341,7 @@ A two-device end-to-end scenario (PIN pairing, send/receive, wrong-PIN rejection
 - [ ] Additional Kotlin Multiplatform targets (desktop/JVM, iOS) via new `LanNetworkFactory` implementations
 - [ ] TLS / encrypted transport
 - [ ] File and binary payload helpers on top of the typed pipe
-- [x] Published to JitPack ([`0.1.3`](https://jitpack.io/#yangwuan55/LanLink))
+- [x] Published to JitPack ([`0.1.4`](https://jitpack.io/#yangwuan55/LanLink))
 
 ---
 

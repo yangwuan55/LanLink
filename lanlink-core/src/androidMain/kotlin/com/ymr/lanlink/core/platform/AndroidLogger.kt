@@ -10,6 +10,10 @@ class AndroidLogger : Logger {
         Log.d(tag, msg)
     }
 
+    override fun i(tag: String, msg: String) {
+        Log.i(tag, msg)
+    }
+
     override fun w(tag: String, msg: String, t: Throwable?) {
         if (t != null) Log.w(tag, msg, t) else Log.w(tag, msg)
     }

@@ -111,3 +111,24 @@ data class TokenProof(
 )
 
 // endregion
+
+// region server-side pairing persistence
+
+/**
+ * On-disk encoding of a server-side
+ * [com.ymr.lanlink.core.domain.pairing.PairingRecord]. Used only by the
+ * persistent registry (e.g.
+ * [com.ymr.lanlink.core.data.pairing.DataStorePairingRegistry]); never travels
+ * the network. `internal` — not part of the public wire protocol.
+ */
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+internal data class StoredPairingRecord(
+    @ProtoNumber(1) val pairingId: String = "",
+    @ProtoNumber(2) val secret: ByteArray = ByteArray(0),
+    @ProtoNumber(3) val clientDeviceName: String = "",
+    @ProtoNumber(4) val pairedAt: Long = 0L,
+    @ProtoNumber(5) val lastSeenAt: Long = 0L,
+)
+
+// endregion

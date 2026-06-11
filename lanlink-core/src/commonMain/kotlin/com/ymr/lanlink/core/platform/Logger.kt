@@ -10,6 +10,7 @@ package com.ymr.lanlink.core.platform
  */
 interface Logger {
     fun d(tag: String, msg: String)
+    fun i(tag: String, msg: String)
     fun w(tag: String, msg: String, t: Throwable? = null)
     fun e(tag: String, msg: String, t: Throwable? = null)
 }
@@ -20,6 +21,10 @@ interface Logger {
 class PrintlnLogger : Logger {
     override fun d(tag: String, msg: String) {
         println("D/$tag: $msg")
+    }
+
+    override fun i(tag: String, msg: String) {
+        println("I/$tag: $msg")
     }
 
     override fun w(tag: String, msg: String, t: Throwable?) {

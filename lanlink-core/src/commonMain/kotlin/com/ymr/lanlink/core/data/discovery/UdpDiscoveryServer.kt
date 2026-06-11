@@ -22,7 +22,10 @@ import kotlinx.io.Buffer
 
 class UdpDiscoveryServer(
     private val servicePort: Int,
-    private val deviceName: String = deviceName()
+    private val deviceName: String = deviceName(),
+    // Stable server identity broadcast as the 5th wire field so reconnecting
+    // clients can match this server by identity even after its TCP port changes.
+    private val serverDeviceId: String = ""
 ) : DiscoveryAdvertiser {
 
     private var selector: SelectorManager? = null
@@ -32,6 +35,10 @@ class UdpDiscoveryServer(
 
     private val _state = MutableStateFlow<UdpDiscoveryState>(UdpDiscoveryState.Idle)
     val state: StateFlow<UdpDiscoveryState> = _state.asStateFlow()
+
+    // Stable short identifier so two advertisers (e.g. a ghost still broadcasting
+    // an old servicePort) are distinguishable in logcat.
+    private val advId = hashCode().toString(16).takeLast(4)
 
     companion object {
         private const val TAG = "UdpDiscoveryServer"
@@ -44,7 +51,7 @@ class UdpDiscoveryServer(
         if (isRunning) return
         isRunning = true
 
-        logger.d(TAG, "Starting UDP Discovery Server with broadcast interval: ${BROADCAST_INTERVAL_MS}ms")
+        logger.i(TAG, "UdpDiscoveryServer[$advId] starting (servicePort=$servicePort, interval=${BROADCAST_INTERVAL_MS}ms)")
 
         scope.launch {
             try {
@@ -57,7 +64,7 @@ class UdpDiscoveryServer(
                     }
                 socket = boundSocket
                 _state.value = UdpDiscoveryState.Broadcasting
-                logger.d(TAG, "UDP Discovery Server started on port $DISCOVERY_PORT")
+                logger.i(TAG, "UdpDiscoveryServer[$advId] started, advertising servicePort=$servicePort on discovery port $DISCOVERY_PORT")
 
                 while (isRunning) {
                     broadcastPresence(boundSocket)
@@ -76,13 +83,15 @@ class UdpDiscoveryServer(
         try {
             val localIp = localIpv4Address()
             logger.d(TAG, "Detected local IP: $localIp")
-            val message = "$MESSAGE|$deviceName|$localIp|$servicePort"
+            // Wire: MESSAGE|name|ip|port|serverDeviceId. The 5th field is appended
+            // for identity-based reconnect; older parsers (parts.size >= 4) ignore it.
+            val message = "$MESSAGE|$deviceName|$localIp|$servicePort|$serverDeviceId"
             val messageBytes = message.encodeToByteArray()
             val buffer = Buffer().apply { write(messageBytes) }
             val address = InetSocketAddress("255.255.255.255", DISCOVERY_PORT)
             val datagram = Datagram(buffer, address)
             boundSocket.send(datagram)
-            logger.d(TAG, "Broadcast sent: $message")
+            logger.d(TAG, "UdpDiscoveryServer[$advId] broadcast sent: $message")
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -102,6 +111,6 @@ class UdpDiscoveryServer(
         } catch (_: Exception) {}
         selector = null
         _state.value = UdpDiscoveryState.Idle
-        logger.d(TAG, "UDP Discovery Server stopped")
+        logger.i(TAG, "UdpDiscoveryServer[$advId] stopped (was advertising servicePort=$servicePort)")
     }
 }

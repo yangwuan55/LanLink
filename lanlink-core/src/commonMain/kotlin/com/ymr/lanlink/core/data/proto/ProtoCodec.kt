@@ -73,6 +73,13 @@ fun TokenProof.encode(): ByteArray = protoBuf.encodeToByteArray(this)
 @OptIn(ExperimentalSerializationApi::class)
 fun decodeTokenProof(bytes: ByteArray): TokenProof = protoBuf.decodeFromByteArray(bytes)
 
+@OptIn(ExperimentalSerializationApi::class)
+internal fun StoredPairingRecord.encode(): ByteArray = protoBuf.encodeToByteArray(this)
+
+@OptIn(ExperimentalSerializationApi::class)
+internal fun decodeStoredPairingRecord(bytes: ByteArray): StoredPairingRecord =
+    protoBuf.decodeFromByteArray(bytes)
+
 // endregion
 
 // region varint (LEB128, base-128) — pure functions

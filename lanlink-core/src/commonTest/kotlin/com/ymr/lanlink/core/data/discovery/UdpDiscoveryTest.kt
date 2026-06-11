@@ -5,6 +5,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** Waits (real time) for [predicate] to hold, since start() transitions state on a background coroutine. */
@@ -123,6 +125,87 @@ class UdpDiscoveryServerTest {
         server.stop()  // Should not throw
         // Server stop() resets to Idle (NOT Stopped).
         assertEquals(UdpDiscoveryState.Idle, server.state.value)
+    }
+}
+
+class ParseDiscoveryMessageTest {
+
+    @Test
+    fun parses_five_field_message_with_serverDeviceId() {
+        val peer = parseDiscoveryMessage("LANCHAT_DISCOVER|Pixel|10.0.0.5|4242|abc-123")
+        assertNotNull(peer)
+        assertEquals("Pixel", peer!!.name)
+        assertEquals("10.0.0.5", peer.host)
+        assertEquals(4242, peer.port)
+        assertEquals("abc-123", peer.serverDeviceId)
+    }
+
+    @Test
+    fun parses_legacy_four_field_message_with_empty_serverDeviceId() {
+        // Backward compat: an advertiser that predates the 5th field still parses,
+        // yielding an empty serverDeviceId rather than failing.
+        val peer = parseDiscoveryMessage("LANCHAT_DISCOVER|Pixel|10.0.0.5|4242")
+        assertNotNull(peer)
+        assertEquals("", peer!!.serverDeviceId)
+        assertEquals(4242, peer.port)
+    }
+
+    @Test
+    fun returns_null_for_non_discovery_or_bad_port() {
+        assertEquals(null, parseDiscoveryMessage("SOMETHING_ELSE|a|b|c"))
+        assertEquals(null, parseDiscoveryMessage("LANCHAT_DISCOVER|Pixel|10.0.0.5|notaport"))
+        assertEquals(null, parseDiscoveryMessage("LANCHAT_DISCOVER|Pixel|10.0.0.5"))
+    }
+}
+
+class PeerTableTest {
+
+    @Test
+    fun same_serverDeviceId_on_new_port_replaces_old_entry() {
+        val table = PeerTable(ttlMs = 6000)
+        table.upsert(DiscoveredPeer("Srv", "10.0.0.5", 4242, "id-1"), now = 1000)
+        table.upsert(DiscoveredPeer("Srv", "10.0.0.5", 9999, "id-1"), now = 2000)
+
+        val snap = table.snapshot()
+        assertEquals(1, snap.size)
+        assertEquals(9999, snap.single().port) // new address replaced the stale one
+    }
+
+    @Test
+    fun distinct_serverDeviceIds_coexist() {
+        val table = PeerTable(ttlMs = 6000)
+        table.upsert(DiscoveredPeer("A", "10.0.0.1", 4000, "id-a"), now = 1000)
+        table.upsert(DiscoveredPeer("B", "10.0.0.2", 5000, "id-b"), now = 1000)
+        assertEquals(2, table.snapshot().size)
+    }
+
+    @Test
+    fun entries_without_id_dedup_by_host_port() {
+        val table = PeerTable(ttlMs = 6000)
+        table.upsert(DiscoveredPeer("L", "10.0.0.9", 7000), now = 1000)
+        table.upsert(DiscoveredPeer("L", "10.0.0.9", 7000), now = 2000)
+        assertEquals(1, table.snapshot().size)
+    }
+
+    @Test
+    fun expired_entry_is_evicted() {
+        val table = PeerTable(ttlMs = 6000)
+        table.upsert(DiscoveredPeer("Srv", "10.0.0.5", 4242, "id-1"), now = 1000)
+        // A later upsert of a different peer past the TTL evicts the stale one.
+        table.upsert(DiscoveredPeer("Other", "10.0.0.6", 5000, "id-2"), now = 8000)
+
+        val snap = table.snapshot()
+        assertEquals(1, snap.size)
+        assertEquals("id-2", snap.single().serverDeviceId)
+    }
+
+    @Test
+    fun evictExpired_reports_removal() {
+        val table = PeerTable(ttlMs = 6000)
+        table.upsert(DiscoveredPeer("Srv", "10.0.0.5", 4242, "id-1"), now = 1000)
+        assertFalse(table.evictExpired(now = 5000)) // still fresh
+        assertTrue(table.evictExpired(now = 8000))  // now past TTL
+        assertTrue(table.snapshot().isEmpty())
     }
 }
 

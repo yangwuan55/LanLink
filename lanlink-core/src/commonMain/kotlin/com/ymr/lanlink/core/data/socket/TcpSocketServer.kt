@@ -135,6 +135,10 @@ class TcpSocketServer(
     private var actualPort: Int = 0
     private var heartbeatJob: Job? = null
 
+    // Stable short identifier so logcat can tell two server instances apart (the
+    // ghost-server diagnosis hinges on this).
+    private val srvId = hashCode().toString(16).takeLast(4)
+
     companion object {
         private const val TAG = "TcpSocketServer"
     }
@@ -147,7 +151,7 @@ class TcpSocketServer(
             serverSocket = server
             actualPort = (server.localAddress as InetSocketAddress).port
             _connectionState.value = ConnectionState.Connected("server", true)
-            logger.d(TAG, "Server started on port $actualPort")
+            logger.i(TAG, "TcpSocketServer[$srvId] started on port $actualPort")
 
             // Start heartbeat monitor
             startHeartbeatMonitor()
@@ -201,7 +205,7 @@ class TcpSocketServer(
                 val clientSocket = server.accept()
                 val clientId = clientSocket.remoteAddress.toString()
                 val remote = clientSocket.remoteAddress as InetSocketAddress
-                logger.d(TAG, "Client connected from $clientId")
+                logger.d(TAG, "TcpSocketServer[$srvId] client connected from $clientId")
 
                 val peer = PeerInfo(
                     name = clientId,
@@ -259,7 +263,7 @@ class TcpSocketServer(
                 clientWriters[clientId] = write
                 clientLastHeartbeat[clientId] = nowMillis()
             }
-            logger.d(TAG, "Authentication successful for $clientId")
+            logger.i(TAG, "TcpSocketServer[$srvId] authentication successful for $clientId")
             _authenticatedPeers.emit(peer)
 
             // Continue with normal message handling
@@ -313,7 +317,7 @@ class TcpSocketServer(
         val provider = authProvider
         if (provider == null) {
             write.writeDelimited(AuthResponse(success = false, message = AuthProtocol.REASON_PAIRING_CLOSED).encode())
-            logger.w(TAG, "PIN handshake rejected for $clientId: pairing window closed")
+            logger.w(TAG, "TcpSocketServer[$srvId] PIN handshake rejected for $clientId: pairing window closed")
             return false
         }
 
@@ -321,7 +325,7 @@ class TcpSocketServer(
 
         if (authResult is AuthResult.Failure) {
             write.writeDelimited(AuthResponse(success = false, message = authResult.message).encode())
-            logger.w(TAG, "Authentication failed for $clientId: ${authResult.message}")
+            logger.w(TAG, "TcpSocketServer[$srvId] PIN authentication failed for $clientId: ${authResult.message}")
             return false
         }
 
@@ -368,6 +372,7 @@ class TcpSocketServer(
     ): Boolean {
         val registry = pairingRegistry
         if (registry == null) {
+            logger.w(TAG, "TcpSocketServer[$srvId] token handshake rejected for $clientId: no pairing registry (PAIRING_REVOKED)")
             write.writeDelimited(AuthResponse(success = false, message = AuthProtocol.REASON_PAIRING_REVOKED).encode())
             return false
         }
@@ -375,7 +380,7 @@ class TcpSocketServer(
         val hello = decodeTokenHello(authRequest.customData)
         val record = registry.find(hello.pairingId)
         if (record == null) {
-            logger.w(TAG, "Unknown pairingId ${hello.pairingId} from $clientId")
+            logger.w(TAG, "TcpSocketServer[$srvId] unknown pairingId ${hello.pairingId} from $clientId (PAIRING_REVOKED)")
             write.writeDelimited(AuthResponse(success = false, message = AuthProtocol.REASON_PAIRING_REVOKED).encode())
             return false
         }
@@ -393,20 +398,20 @@ class TcpSocketServer(
         val proofFrame = try {
             withTimeout(handshakeTimeoutMs) { decodeTokenProof(read.readDelimited()) }
         } catch (e: TimeoutCancellationException) {
-            logger.w(TAG, "Token handshake timeout awaiting client proof for ${hello.pairingId} ($clientId)")
+            logger.w(TAG, "TcpSocketServer[$srvId] token handshake timeout awaiting client proof for ${hello.pairingId} ($clientId)")
             try { socket.close() } catch (_: Exception) {}
             return false
         }
         val expected = TokenProofs.clientProof(record.secret, serverNonce, hello.clientNonce)
         if (!constantTimeEquals(proofFrame.clientProof, expected)) {
-            logger.w(TAG, "Invalid client proof for ${hello.pairingId} from $clientId")
+            logger.w(TAG, "TcpSocketServer[$srvId] invalid client proof for ${hello.pairingId} from $clientId (INVALID_PROOF)")
             write.writeDelimited(AuthResponse(success = false, message = AuthProtocol.REASON_INVALID_PROOF).encode())
             return false
         }
 
         registry.save(record.copy(lastSeenAt = nowMillis()))
         write.writeDelimited(AuthResponse(success = true, message = AuthProtocol.MESSAGE_OK).encode())
-        logger.d(TAG, "Token handshake OK for ${hello.pairingId} ($clientId)")
+        logger.i(TAG, "TcpSocketServer[$srvId] token handshake OK for ${hello.pairingId} ($clientId)")
         return true
     }
 
@@ -522,6 +527,7 @@ class TcpSocketServer(
     }
 
     override fun stop() {
+        logger.i(TAG, "TcpSocketServer[$srvId] stopping (port=$actualPort)")
         heartbeatJob?.cancel()
         scope.cancel()
 
@@ -553,6 +559,6 @@ class TcpSocketServer(
         selector = null
         _connectionState.value = ConnectionState.Idle
         _connectedPeers.value = emptyList()
-        logger.d(TAG, "Server stopped")
+        logger.i(TAG, "TcpSocketServer[$srvId] stopped (was port=$actualPort)")
     }
 }

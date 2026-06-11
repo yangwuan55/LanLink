@@ -14,7 +14,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.ymr.lanlink.R
 import com.ymr.lanlink.data.repository.LanRepository
-import com.ymr.lanlink.core.domain.model.ConnectionState
+import com.ymr.lanlink.data.session.LanSessionManager
 import com.ymr.lanlink.presentation.MainActivity
 
 class LanForegroundService : Service() {
@@ -69,11 +69,11 @@ class LanForegroundService : Service() {
     }
     
     override fun onDestroy() {
-        repository?.let {
-            if (it.connectionState.value is ConnectionState.Connected) {
-                it.disconnect()
-            }
-        }
+        // The foreground service represents the "server should be alive" lifecycle.
+        // When it is destroyed (explicit stop), the whole process-level session must
+        // be torn down so no orphan TcpSocketServer/advertiser keeps running.
+        Log.d(TAG, "onDestroy -> LanSessionManager.close()")
+        LanSessionManager.close()
         Log.d(TAG, "Service destroyed")
         super.onDestroy()
     }

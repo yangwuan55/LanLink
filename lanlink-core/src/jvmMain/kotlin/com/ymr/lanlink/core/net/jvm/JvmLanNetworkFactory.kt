@@ -38,8 +38,8 @@ class JvmLanNetworkFactory : LanNetworkFactory {
     override fun createClient(): LanClient =
         TcpSocketClient()
 
-    override fun createAdvertiser(servicePort: Int): DiscoveryAdvertiser =
-        UdpDiscoveryServer(servicePort, deviceName())
+    override fun createAdvertiser(servicePort: Int, serverDeviceId: String): DiscoveryAdvertiser =
+        UdpDiscoveryServer(servicePort, deviceName(), serverDeviceId)
 
     override fun createScanner(): DiscoveryScanner =
         UdpDiscoveryClient()

@@ -24,8 +24,12 @@ interface LanNetworkFactory {
     /** Creates a client transport. */
     fun createClient(): LanClient
 
-    /** Creates an advertiser broadcasting the given [servicePort]. */
-    fun createAdvertiser(servicePort: Int): DiscoveryAdvertiser
+    /**
+     * Creates an advertiser broadcasting the given [servicePort] and [serverDeviceId].
+     * The id lets reconnecting clients match this server by stable identity even
+     * after its ephemeral TCP port changes across restarts.
+     */
+    fun createAdvertiser(servicePort: Int, serverDeviceId: String): DiscoveryAdvertiser
 
     /** Creates a scanner that listens for advertised peers. */
     fun createScanner(): DiscoveryScanner

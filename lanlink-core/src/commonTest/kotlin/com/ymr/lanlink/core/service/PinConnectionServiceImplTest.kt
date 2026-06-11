@@ -270,6 +270,38 @@ class PinConnectionServiceImplTest {
     }
 
     @Test
+    fun startServer_twice_stops_previous_server_and_advertiser() = runBlocking {
+        val factory = FakeLanNetworkFactory()
+        val service = PinConnectionServiceImpl(factory)
+
+        service.startServer()
+        val firstServer = awaitNotNull { factory.server?.takeIf { it.started } }
+        val firstAdvertiser = awaitNotNull { factory.advertiser?.takeIf { it.started } }
+        assertNotNull(firstServer)
+        assertNotNull(firstAdvertiser)
+        service.startPairing(pin)
+        assertTrue(awaitNotNull { service.pairingActive.value.takeIf { it } } ?: false)
+
+        service.startServer()
+
+        // The previous generation is fully torn down — no ghost server still
+        // accepting on the old port, no ghost advertiser still broadcasting it.
+        assertTrue(firstServer!!.stopped)
+        assertTrue(firstAdvertiser!!.stopped)
+        // The stale pairing window does not leak into the new session.
+        assertFalse(service.pairingActive.value)
+
+        // The new generation comes up as the only live instance.
+        val secondServer = awaitNotNull { factory.servers.getOrNull(1)?.takeIf { it.started } }
+        assertNotNull(secondServer)
+        assertFalse(secondServer!!.stopped)
+        assertNotNull(awaitNotNull { factory.advertisers.getOrNull(1)?.takeIf { it.started } })
+
+        service.disconnect()
+        assertTrue(secondServer.stopped)
+    }
+
+    @Test
     fun disconnect_resets_pairingActive() = runBlocking {
         val factory = FakeLanNetworkFactory()
         val service = PinConnectionServiceImpl(factory)
